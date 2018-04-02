@@ -2045,18 +2045,22 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
     RETURN sys_refcursor
     IS
       res   sys_refcursor;
-      vdate NUMBER := p#mn_utils.get#mn(a#date) + 1;
+--      vdate NUMBER := p#mn_utils.get#mn(a#date) + 1;
+      vdate NUMBER;
     BEGIN
-      FOR cr#i IN (SELECT t.c#id
-          FROM t#house t
-          ORDER BY 1)
-      LOOP
-        do#calc_b_store(cr#i.c#id, vdate);
-        COMMIT;
-      END LOOP;
+        select max(mn) into vdate from V_BANK_EXP;
+      vdate := least(p#mn_utils.get#mn(a#date),vdate);
+--      FOR cr#i IN (SELECT t.c#id
+--          FROM t#house t
+--          ORDER BY 1)
+--      LOOP
+--        do#calc_b_store(cr#i.c#id, vdate);
+--        COMMIT;
+--      END LOOP;
 
       OPEN res FOR
-      SELECT ba.c#id,
+      SELECT
+             V.B_ACCOUNT_ID c#id,
              b.c#id bank_id,
              ba.c#num "C#R_NUM" --получатель, счёт
              ,
@@ -2074,53 +2078,99 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
              ,
              'г. ' || b.c#town_name "C#BR_TOWN_NAME" --банк получателя, город
              ,
-             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'K' ELSE 'S' END AS flg,
-             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Все дома в котле' ELSE TO_CHAR(MAX(s.c#house_id)) END AS c#house_id,
-             SUM(sg.c#c_sum + sg.c#m_sum - sg.c#p_sum) "C#SUM",
-             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Все дома в котле' ELSE TO_CHAR(MAX(s.c#house_id)) END AS c#house_id,
-             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Перевод взносов на капитальный ремонт на счет регионального оператора за ' ||
+             CASE WHEN V.ACC_TYPE = 1 THEN 'K' ELSE 'S' END AS flg,
+             CASE WHEN V.ACC_TYPE = 1 THEN 'Все дома в котле' ELSE TO_CHAR(V.house_id) END AS c#house_id,
+             V.PAY_SUM_TOTAL-V.KOTEL_TRANSFER-V.SPEC_TRANSFER-V.BARTER_SUM_TOTAL "C#SUM",
+             CASE WHEN V.ACC_TYPE = 1 THEN 'Перевод взносов на капитальный ремонт на счет регионального оператора за ' ||
                    TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
-                   TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' ELSE 'Перевод взносов на СС МКД(' || TO_CHAR(MAX(s.c#house_id)) ||
-                 '), адрес: ' || p#utils.get#house_addr(MAX(s.c#house_id), 1) ||
+                   TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' ELSE 'Перевод взносов на СС МКД(' || TO_CHAR(V.house_id) ||
+                 '), адрес: ' || p#utils.get#house_addr(V.house_id, 1) ||
                  ' за ' || TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
                  TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' END AS target_pay,
-             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Перевод взносов на капитальный ремонт на счет регионального оператора за ' ||
+             CASE WHEN V.ACC_TYPE = 1 THEN 'Перевод взносов на капитальный ремонт на счет регионального оператора за ' ||
                    TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
-                   TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' ELSE 'Перевод взносов на СС МКД(' || TO_CHAR(MAX(s.c#house_id)) ||
-                 '), адрес: ' || p#utils.get#house_addr(MAX(s.c#house_id), 1) ||
+                   TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' ELSE 'Перевод взносов на СС МКД(' || TO_CHAR(V.house_id) ||
+                 '), адрес: ' || p#utils.get#house_addr(V.house_id, 1) ||
                  ' за ' || TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
                  TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' END AS target_pay1
-        FROM t#b_store s,
-             t#b_storage sg,
-             t#b_account ba,
-             t#bank b
+        FROM
+             t#b_account ba
+             join t#bank b on (ba.C#BANK_ID = b.C#ID)
+            join V_BANK_EXP V on (ba.C#ID = v.B_ACCOUNT_ID)
         WHERE 1 = 1
           AND ba.c#acc_type IN (1, 2)
-          AND s.c#mn = vdate
-          AND sg.c#house_id = s.c#house_id
-          AND sg.c#service_id = s.c#service_id
-          AND sg.c#b_account_id = s.c#b_account_id
-          AND sg.c#mn = (SELECT MAX(c#mn)
-              FROM t#b_storage
-              WHERE c#house_id = sg.c#house_id
-                AND c#service_id = sg.c#service_id
-                AND c#b_account_id = sg.c#b_account_id
-                AND c#mn <= vdate)
-          AND ba.c#id = s.c#b_account_id
-          AND b.c#id = ba.c#bank_id
-        GROUP BY ba.c#id,
-                 b.c#id,
-                 ba.c#num,
-                 ba.c#name,
-                 ba.c#inn_num,
-                 ba.c#kpp_num,
-                 b.c#name,
-                 b.c#bic_num,
-                 b.c#ca_num,
-                 b.c#town_name
-        HAVING SUM(sg.c#c_sum + sg.c#m_sum - sg.c#p_sum) > 0 -- добавлено для исключения отрицательных сумм к перечислению
+          AND V.MN = vdate
+          and V.PAY_SUM_TOTAL-V.KOTEL_TRANSFER-V.SPEC_TRANSFER-V.BARTER_SUM_TOTAL > 0
         ORDER BY 1,
                  flg;
+
+--
+--      SELECT ba.c#id,
+--             b.c#id bank_id,
+--             ba.c#num "C#R_NUM" --получатель, счёт
+--             ,
+--             ba.c#name "C#R_NAME" --получатель, имя
+--             ,
+--             ba.c#inn_num "C#R_INN_NUM" --получатель, инн
+--             ,
+--             ba.c#kpp_num "C#R_KPP_NUM" --получатель, кпп
+--             ,
+--             b.c#name "C#BR_NAME" --банк получателя, имя
+--             ,
+--             b.c#bic_num "C#BR_BIC_NUM" --банк получателя, бик
+--             ,
+--             b.c#ca_num "C#BR_CA_NUM" --банк получателя, корсчёт
+--             ,
+--             'г. ' || b.c#town_name "C#BR_TOWN_NAME" --банк получателя, город
+--             ,
+--             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'K' ELSE 'S' END AS flg,
+--             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Все дома в котле' ELSE TO_CHAR(MAX(s.c#house_id)) END AS c#house_id,
+--             SUM(sg.c#c_sum + sg.c#m_sum - sg.c#p_sum) "C#SUM",
+--             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Все дома в котле' ELSE TO_CHAR(MAX(s.c#house_id)) END AS c#house_id,
+--             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Перевод взносов на капитальный ремонт на счет регионального оператора за ' ||
+--                   TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
+--                   TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' ELSE 'Перевод взносов на СС МКД(' || TO_CHAR(MAX(s.c#house_id)) ||
+--                 '), адрес: ' || p#utils.get#house_addr(MAX(s.c#house_id), 1) ||
+--                 ' за ' || TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
+--                 TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' END AS target_pay,
+--             CASE WHEN COUNT(s.c#house_id) > 1 THEN 'Перевод взносов на капитальный ремонт на счет регионального оператора за ' ||
+--                   TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
+--                   TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' ELSE 'Перевод взносов на СС МКД(' || TO_CHAR(MAX(s.c#house_id)) ||
+--                 '), адрес: ' || p#utils.get#house_addr(MAX(s.c#house_id), 1) ||
+--                 ' за ' || TRIM(TO_CHAR(ADD_MONTHS(a#date, -1), 'month')) || ' ' ||
+--                 TO_CHAR(ADD_MONTHS(a#date, -1), 'yyyy') || '.' END AS target_pay1
+--        FROM t#b_store s,
+--             t#b_storage sg,
+--             t#b_account ba,
+--             t#bank b
+--        WHERE 1 = 1
+--          AND ba.c#acc_type IN (1, 2)
+--          AND s.c#mn = vdate
+--          AND sg.c#house_id = s.c#house_id
+--          AND sg.c#service_id = s.c#service_id
+--          AND sg.c#b_account_id = s.c#b_account_id
+--          AND sg.c#mn = (SELECT MAX(c#mn)
+--              FROM t#b_storage
+--              WHERE c#house_id = sg.c#house_id
+--                AND c#service_id = sg.c#service_id
+--                AND c#b_account_id = sg.c#b_account_id
+--                AND c#mn <= vdate)
+--          AND ba.c#id = s.c#b_account_id
+--          AND b.c#id = ba.c#bank_id
+--        GROUP BY ba.c#id,
+--                 b.c#id,
+--                 ba.c#num,
+--                 ba.c#name,
+--                 ba.c#inn_num,
+--                 ba.c#kpp_num,
+--                 b.c#name,
+--                 b.c#bic_num,
+--                 b.c#ca_num,
+--                 b.c#town_name
+--        HAVING SUM(sg.c#c_sum + sg.c#m_sum - sg.c#p_sum) > 0 -- добавлено для исключения отрицательных сумм к перечислению
+--        ORDER BY 1,
+--                 flg;
+--                 
       RETURN res;
     END;
 
