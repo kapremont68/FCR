@@ -184,7 +184,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA"
             WHERE 1 = 1
               AND ((in_file_id = -1)
               OR t.c#file_id = in_file_id)
-              AND t.c#acc_id IS NULL and C#OPS_ID is null;
+              AND t.c#acc_id IS NULL and C#OPS_ID is null and c#account is not null;
     BEGIN
       FOR c IN ls_pay(a#in_file_id)
       LOOP
@@ -208,7 +208,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA"
             WHERE 1 = 1
               AND ((in_file_id = -1)
               OR t.c#file_id = in_file_id)
-              AND t.c#acc_id IS NULL  and C#OPS_ID is null
+              AND t.c#acc_id IS NULL  and C#OPS_ID is null  and c#account is not null
       ;
     BEGIN
       FOR c IN ls_pay(a#in_file_id)
@@ -1390,33 +1390,21 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA"
     PROCEDURE ExecAllFunctionCycle as
     begin
         FOR new_acc_rec IN (
-            with
-                not_pay as (
-                    select distinct c#account from T#PAY_SOURCE where C#OPS_ID is null
-                )
---                ,erc as (
---                    select distinct LSO from T#ERC_NACH
---                )
-                ,exist_op as (
-                    select 
-                        *
-                    from
-                        not_pay 
-                        join t#account_op on (c#account = t#account_op.C#OUT_NUM)
-                )
-            select
-                distinct c#file_id 
+            select distinct
+                C#FILE_ID
             from
-                T#PAY_SOURCE PS
-                join exist_op EO on (PS.c#ACCOUNT = EO.c#account)
-                where 
-                    C#OPS_ID is null
+                T#PAY_SOURCE P
+            where
+                C#OPS_ID is null
+                and C#ACCOUNT in (select C#OUT_NUM from T#ACCOUNT_OP union select c#num from T#ACCOUNT)
             order by     
                 c#file_id --desc
         )            
+        
         LOOP
             BEGIN
-                P#FCR_LOAD_OUTER_DATA.ExecAllFunction (  A#IN_FILE_ID => new_acc_rec.c#file_id, A#IN_DATE => sysdate) ; 
+                P#FCR_LOAD_OUTER_DATA.ExecAllFunction (  A#IN_FILE_ID => new_acc_rec.c#file_id, A#IN_DATE => sysdate); 
+                COMMIT;
             END;        
         END LOOP;
     end;
