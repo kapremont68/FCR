@@ -155,8 +155,17 @@ CREATE OR REPLACE PACKAGE P#REPORTS
 	* @param a#person_id идентификатор юр. лица
 	* @return курсор с информацией по оплатам
 	*/
-  FUNCTION LST#REESTR(a#person_id INTEGER)
+  FUNCTION LST#REESTR(  a#person_id  INTEGER, 
+                        a#date_begin VARCHAR2 default null,
+                        a#date_end   VARCHAR2 default null)
     RETURN sys_refcursor;
+
+
+  PROCEDURE LST#REESTR2(a#person_id  INTEGER);
+
+
+
+  FUNCTION LST#REESTR_OLD(  a#person_id  INTEGER) RETURN sys_refcursor;
 
   /** 
 	* Реестр начислений 
@@ -169,6 +178,12 @@ CREATE OR REPLACE PACKAGE P#REPORTS
                              a#mn_begin  INT,
                              a#mn_end    INT)
     RETURN sys_refcursor;
+
+
+-- Отчет для ГЖИ приложение 6 
+  FUNCTION LST#GGI_PRIL6(p_YEAR VARCHAR2) RETURN sys_refcursor;
+
+
 
 END P#REPORTS;
 /
@@ -198,184 +213,30 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
       m_beg := fcr.p#mn_utils.get#mn(a#date_begin);
       m_end := fcr.p#mn_utils.get#mn(a#date_end);
       OPEN ret FOR
-        select
-            P#UTILS.GET#HOUSE_ADDR(HOUSE_ID) "Адрес дома"
-            ,SUM(CASE WHEN MN = P#MN_UTILS.GET#MN(a#date_begin) THEN BALANCE_SUM_TOTAL-PAY_SUM_MN+OWNERS_JOB_SUM_MN ELSE 0 END)  "Остаток"
-            ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN PAY_SUM_MN+PENI_SUM_MN ELSE 0 END)  "Всего"
-            ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN PAY_SUM_MN ELSE 0 END)  "Взносов"
-            ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN PENI_SUM_MN ELSE 0 END)  "Пени"
-            ,0 "Доход"
-            ,0 "Иных"            
-            ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN OWNERS_JOB_SUM_MN ELSE 0 END)  "Использовано"
-            ,SUM(CASE WHEN MN = P#MN_UTILS.GET#MN(a#date_end) THEN BALANCE_SUM_TOTAL ELSE 0 END)  "Остаток на конец"
-        from
-            MV_HOUSE_BALANCE
+        select * from (
+                select
+                    P#UTILS.GET#HOUSE_ADDR(HOUSE_ID) "Адрес дома"
+                    ,SUM(CASE WHEN MN = P#MN_UTILS.GET#MN(a#date_begin) THEN BALANCE_SUM_TOTAL-PAY_SUM_MN+OWNERS_JOB_SUM_MN ELSE 0 END)  "Остаток"
+                    ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN PAY_SUM_MN+PENI_SUM_MN ELSE 0 END)  "Всего"
+                    ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN PAY_SUM_MN ELSE 0 END)  "Взносов"
+                    ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN PENI_SUM_MN ELSE 0 END)  "Пени"
+                    ,0 "Доход"
+                    ,0 "Иных"            
+                    ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN OWNERS_JOB_SUM_MN ELSE 0 END)  "Использовано"
+                    ,SUM(CASE WHEN MN = P#MN_UTILS.GET#MN(a#date_end) THEN BALANCE_SUM_TOTAL ELSE 0 END)  "Остаток на конец"
+                    ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
+                from
+                    T#TOTAL_HOUSE
+                where
+                    MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end)
+                group by
+                    HOUSE_ID
+                order by
+                    P#UTILS.GET#HOUSE_ADDR(HOUSE_ID)
+        ) T
         where
-            MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end)
-        group by
-            HOUSE_ID
-        order by
-            P#UTILS.GET#HOUSE_ADDR(HOUSE_ID)
+            T."Всего" > 0
         ;
---      SELECT P#UTILS.GET#HOUSE_ADDR(h.c#id) "Адрес дома",
---             ROUND(NVL(toIII.Ostatok, 0), 2) "Остаток",
---             NVL(op.p_sum_1, 0) + NVL(op.p_sum_2, 0) + NVL(op.fp_sum_1, 0) + NVL(op.fp_sum_2, 0) "Всего",
---             NVL(op.p_sum_1, 0) + NVL(op.p_sum_2, 0) AS "Взносов",
---             NVL(op.fp_sum_1, 0) + NVL(op.fp_sum_2, 0) AS "Пени",
---             0 "Доход",
---             0 "Иных",
---             NVL(ttt.col, 0) AS "Использовано",
---             ROUND(NVL(toIII.Ostatok, 0), 2) + (NVL(op.p_sum_1, 0) + NVL(op.p_sum_2, 0) + NVL(op.fp_sum_1, 0) + NVL(op.fp_sum_2, 0)) - NVL(ttt.col, 0) "Остаток на конец"
---        FROM (SELECT c#house_id,
---                     SUM(C#0_C_VOL_1) VOL_1,
---                     SUM(C#0_C_VOL_2) VOL_2,
---                     SUM(C#0_C_SUM_1) SUM_1,
---                     SUM(C#0_C_SUM_2) SUM_2,
---                     SUM(C#0_MC_SUM_1) MC_SUM_1,
---                     SUM(C#0_MC_SUM_2) MC_SUM_2,
---                     SUM(C#0_M_SUM_1) M_SUM_1,
---                     SUM(C#0_M_SUM_2) M_SUM_2,
---                     SUM(C#0_MP_SUM_1) MP_SUM_1,
---                     SUM(C#0_MP_SUM_2) MP_SUM_2,
---                     SUM(C#0_P_SUM_1) P_SUM_1,
---                     SUM(C#0_P_SUM_2) P_SUM_2,
---                     SUM(C#0_FC_SUM_1) FC_SUM_1,
---                     SUM(C#0_FC_SUM_2) FC_SUM_2,
---                     SUM(C#0_FP_SUM_1) FP_SUM_1,
---                     SUM(C#0_FP_SUM_2) FP_SUM_2
---                 FROM (SELECT r.c#house_id,
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_vol) ELSE 0 END "C#0_C_VOL_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_vol) ELSE 0 END "C#0_C_VOL_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_sum) ELSE 0 END "C#0_C_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_sum) ELSE 0 END "C#0_C_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mc_sum) ELSE 0 END "C#0_MC_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mc_sum) ELSE 0 END "C#0_MC_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#m_sum) ELSE 0 END "C#0_M_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#m_sum) ELSE 0 END "C#0_M_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mp_sum) ELSE 0 END "C#0_MP_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mp_sum) ELSE 0 END "C#0_MP_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#p_sum) ELSE 0 END "C#0_P_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#p_sum) ELSE 0 END "C#0_P_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fc_sum) ELSE 0 END "C#0_FC_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fc_sum) ELSE 0 END "C#0_FC_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fp_sum) ELSE 0 END "C#0_FP_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fp_sum) ELSE 0 END "C#0_FP_SUM_2"
---                     FROM t#store t,
---                          t#storage tt,
---                          v#work w,
---                          t#account a,
---                          t#rooms r
---                     WHERE 1 = 1
---                       AND t.c#mn = m_beg - 1
---                       AND w.c#id = tt.c#work_id
---                       AND tt.c#account_id = t.c#account_id
---                       AND tt.c#work_id = t.c#work_id
---                       AND tt.c#doer_id = t.c#doer_id
---                       AND tt.c#mn = (SELECT MAX(c#mn)
---                           FROM t#storage
---                           WHERE c#account_id = t.c#account_id
---                             AND c#work_id = t.c#work_id
---                             AND c#doer_id = t.c#doer_id
---                             AND c#mn <= t.c#mn)
---                       --and r.c#house_id = a#house_id
---                       AND a.c#id = t.c#account_id
---                       AND r.c#id = a.c#rooms_id
---
---                     GROUP BY r.c#house_id,
---                              w.c#tar_val) sg1
---                 GROUP BY c#house_id) sg,
---
---
---             (SELECT c#house_id,
---                     SUM(C#1_C_VOL_1) VOL_1,
---                     SUM(C#1_C_VOL_2) VOL_2,
---                     SUM(C#1_C_SUM_1) SUM_1,
---                     SUM(C#1_C_SUM_2) SUM_2
---                 FROM (SELECT r.c#house_id,
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(t.c#vol) ELSE 0 END "C#1_C_VOL_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(t.c#vol) ELSE 0 END "C#1_C_VOL_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(t.c#sum) ELSE 0 END "C#1_C_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(t.c#sum) ELSE 0 END "C#1_C_SUM_2"
---                     FROM t#charge t,
---                          t#account a,
---                          v#work w,
---                          t#rooms r
---                     WHERE 1 = 1
---                       AND t.c#mn >= m_beg
---                       AND t.c#mn <= m_end
---                       --and r.c#house_id = 5337
---                       AND w.c#id = t.c#work_id
---                       AND a.c#id = t.c#account_id
---                       AND r.c#id = a.c#rooms_id
---
---                     GROUP BY r.c#house_id,
---                              w.c#tar_val) ch1
---
---                 GROUP BY ch1.c#house_id) ch,
---
---             (SELECT c#house_id,
---                     SUM(C#1_MC_SUM_1) MC_SUM_1,
---                     SUM(C#1_MC_SUM_2) MC_SUM_2,
---                     SUM(C#1_M_SUM_1) M_SUM_1,
---                     SUM(C#1_M_SUM_2) M_SUM_2,
---                     SUM(C#1_MP_SUM_1) MP_SUM_1,
---                     SUM(C#1_MP_SUM_2) MP_SUM_2,
---                     SUM(C#1_P_SUM_1) P_SUM_1,
---                     SUM(C#1_P_SUM_2) P_SUM_2,
---                     SUM(C#1_FC_SUM_1) FC_SUM_1,
---                     SUM(C#1_FC_SUM_2) FC_SUM_2,
---                     SUM(C#1_FP_SUM_1) FP_SUM_1,
---                     SUM(C#1_FP_SUM_2) FP_SUM_2
---
---                 FROM (SELECT r.c#house_id,
---                              w.c#tar_val
---                              --,p#mn_utils.get#mn(t.c#date) "C#MN"
---                              ,
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MC' THEN t.c#sum END) ELSE 0 END "C#1_MC_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MC' THEN t.c#sum END) ELSE 0 END "C#1_MC_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'M' THEN t.c#sum END) ELSE 0 END "C#1_M_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'M' THEN t.c#sum END) ELSE 0 END "C#1_M_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MP' THEN t.c#sum END) ELSE 0 END "C#1_MP_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MP' THEN t.c#sum END) ELSE 0 END "C#1_MP_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'P' THEN t.c#sum END) ELSE 0 END "C#1_P_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'P' THEN t.c#sum END) ELSE 0 END "C#1_P_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FC' THEN t.c#sum END) ELSE 0 END "C#1_FC_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FC' THEN t.c#sum END) ELSE 0 END "C#1_FC_SUM_2",
---                              CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FP' THEN NVL(t.c#sum, 0) END) ELSE 0 END "C#1_FP_SUM_1",
---                              CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FP' THEN NVL(t.c#sum, 0) END) ELSE 0 END "C#1_FP_SUM_2"
---
---                     FROM v#op t,
---                          v#work w,
---                          t#account a,
---                          t#rooms r
---                     WHERE 1 = 1
---                       AND t.c#date >= p#mn_utils.get#date(m_beg)
---                       AND t.c#date < p#mn_utils.get#date(m_end + 1)
---                       AND t.c#valid_tag = 'Y'
---                       AND w.c#id = t.c#work_id
---                       AND a.c#id = t.c#account_id
---                       AND r.c#id = a.c#rooms_id
---                     GROUP BY r.c#house_id,
---                              w.c#tar_val) op1
---                 GROUP BY c#house_id) op,
---             fcr.t#house h,
---             (SELECT house_id,
---                     ROUND(column2, 2) col
---                 FROM fcr.t#temp_IV tV
---                   LEFT JOIN fcr.t#trans_2016 trV
---                     ON (tV.column1 = trV.address)) ttt,
---             (SELECT th.c#id,
---                     tIII.Ostatok
---                 FROM fcr.t#house th
---                   LEFT JOIN fcr.t#temp_ostatok_III tIII
---                     ON (P#UTILS.GET#HOUSE_ADDR(th.c#id) = tIII.Address)) toIII
---        WHERE 1 = 1
---          AND h.c#id = sg.c#house_id
---          AND h.c#id = ch.c#house_id
---          AND h.c#id = op.c#house_id (+)
---          AND h.c#id = ttt.house_id (+)
---          AND h.c#id (+) = toIII.c#id
---        ORDER BY P#UTILS.GET#HOUSE_ADDR(h.c#id);
       RETURN ret;
     END;
 
@@ -398,7 +259,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
         with
             total as (
                 select
-                    HOUSE_ID
+                    T.HOUSE_ID
                     ,ADDR
                     ,SUM(CASE WHEN MN BETWEEN 162 AND P#MN_UTILS.GET#MN(a#date_end) THEN CHARGE_SUM_MN ELSE 0 END)  CHARGE_SUM
                     ,SUM(CASE WHEN MN BETWEEN 162 AND P#MN_UTILS.GET#MN(a#date_end) THEN PAY_SUM_MN-CHARGE_SUM_MN ELSE 0 END)  PAY_MINUS_CHARGE_SUM
@@ -407,11 +268,12 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                     ,SUM(CASE WHEN MN BETWEEN 162 AND P#MN_UTILS.GET#MN(a#date_end) THEN GOS_JOB_SUM_MN ELSE 0 END)  GOS_JOBS_SUM
                     ,SUM(CASE WHEN MN BETWEEN 162 AND P#MN_UTILS.GET#MN(a#date_end) THEN JOB_SUM_MN ELSE 0 END)  TOTAL_JOBS_SUM
                 from
-                    MV_HOUSE_BALANCE
+                    T#TOTAL_HOUSE T
+                    JOIN MV_HOUSES_ADRESES A ON (T.HOUSE_ID = A.HOUSE_ID)
                 where
                     MN BETWEEN 162 AND P#MN_UTILS.GET#MN(a#date_end)
                 group by
-                    HOUSE_ID, ADDR
+                    T.HOUSE_ID, ADDR
             )            
             ,mn as (
                 select
@@ -420,7 +282,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                     ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN JOB_SUM_MN ELSE 0 END)  PERIOD_JOBS_SUM
 --                    ,SUM(CASE WHEN MN = P#MN_UTILS.GET#MN(a#date_end) THEN BALANCE_SUM_TOTAL ELSE 0 END)  BALANCE_END
                 from
-                    MV_HOUSE_BALANCE
+                    T#TOTAL_HOUSE    
                 where
                     MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end)
                 group by
@@ -459,192 +321,12 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             N13 c10,
 --            N14 c11
             0 c11
+            ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
         from
             alls
         order by
             address
         ;
---      SELECT a.address,
---             tII.work,
---             tII.Al,
---             a.isp,
---             0 c1,
---             0 c2,
---             0 c3,
---             0 c4,
---             0 c5,
---             0 c6,
---             0 c7,
---             0 c8,
---             0 c9,
---             0 c10,
---             0 c11
---        FROM (SELECT P#UTILS.GET#HOUSE_ADDR(h.c#id) address,
---                     ROUND(NVL(toIII.Ostatok, 0), 2) "Остаток",
---                     NVL(op.p_sum_1, 0) + NVL(op.p_sum_2, 0) + NVL(op.fp_sum_1, 0) + NVL(op.fp_sum_2, 0) "Всего",
---                     NVL(op.p_sum_1, 0) + NVL(op.p_sum_2, 0) AS "Взносов",
---                     NVL(op.fp_sum_1, 0) + NVL(op.fp_sum_2, 0) AS "Пени",
---                     0 "Доход",
---                     0 "Иных",
---                     NVL(ttt.col, 0) AS isp,
---                     ROUND(NVL(toIII.Ostatok, 0), 2) + (NVL(op.p_sum_1, 0) + NVL(op.p_sum_2, 0) + NVL(op.fp_sum_1, 0) + NVL(op.fp_sum_2, 0)) - NVL(ttt.col, 0) "Остаток на конец"
---            FROM (SELECT c#house_id,
---                         SUM(C#0_C_VOL_1) VOL_1,
---                         SUM(C#0_C_VOL_2) VOL_2,
---                         SUM(C#0_C_SUM_1) SUM_1,
---                         SUM(C#0_C_SUM_2) SUM_2,
---                         SUM(C#0_MC_SUM_1) MC_SUM_1,
---                         SUM(C#0_MC_SUM_2) MC_SUM_2,
---                         SUM(C#0_M_SUM_1) M_SUM_1,
---                         SUM(C#0_M_SUM_2) M_SUM_2,
---                         SUM(C#0_MP_SUM_1) MP_SUM_1,
---                         SUM(C#0_MP_SUM_2) MP_SUM_2,
---                         SUM(C#0_P_SUM_1) P_SUM_1,
---                         SUM(C#0_P_SUM_2) P_SUM_2,
---                         SUM(C#0_FC_SUM_1) FC_SUM_1,
---                         SUM(C#0_FC_SUM_2) FC_SUM_2,
---                         SUM(C#0_FP_SUM_1) FP_SUM_1,
---                         SUM(C#0_FP_SUM_2) FP_SUM_2
---                     FROM (SELECT r.c#house_id,
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_vol) ELSE 0 END "C#0_C_VOL_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_vol) ELSE 0 END "C#0_C_VOL_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_sum) ELSE 0 END "C#0_C_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#c_sum) ELSE 0 END "C#0_C_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mc_sum) ELSE 0 END "C#0_MC_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mc_sum) ELSE 0 END "C#0_MC_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#m_sum) ELSE 0 END "C#0_M_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#m_sum) ELSE 0 END "C#0_M_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mp_sum) ELSE 0 END "C#0_MP_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#mp_sum) ELSE 0 END "C#0_MP_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#p_sum) ELSE 0 END "C#0_P_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#p_sum) ELSE 0 END "C#0_P_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fc_sum) ELSE 0 END "C#0_FC_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fc_sum) ELSE 0 END "C#0_FC_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fp_sum) ELSE 0 END "C#0_FP_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(tt.c#fp_sum) ELSE 0 END "C#0_FP_SUM_2"
---                         FROM t#store t,
---                              t#storage tt,
---                              v#work w,
---                              t#account a,
---                              t#rooms r
---                         WHERE 1 = 1
---                           AND t.c#mn = m_beg - 1
---                           AND w.c#id = tt.c#work_id
---                           AND tt.c#account_id = t.c#account_id
---                           AND tt.c#work_id = t.c#work_id
---                           AND tt.c#doer_id = t.c#doer_id
---                           AND tt.c#mn = (SELECT MAX(c#mn)
---                               FROM t#storage
---                               WHERE c#account_id = t.c#account_id
---                                 AND c#work_id = t.c#work_id
---                                 AND c#doer_id = t.c#doer_id
---                                 AND c#mn <= t.c#mn)
---                           --and r.c#house_id = a#house_id
---                           AND a.c#id = t.c#account_id
---                           AND r.c#id = a.c#rooms_id
---
---                         GROUP BY r.c#house_id,
---                                  w.c#tar_val) sg1
---                     GROUP BY c#house_id) sg,
---
---
---                 (SELECT c#house_id,
---                         SUM(C#1_C_VOL_1) VOL_1,
---                         SUM(C#1_C_VOL_2) VOL_2,
---                         SUM(C#1_C_SUM_1) SUM_1,
---                         SUM(C#1_C_SUM_2) SUM_2
---                     FROM (SELECT r.c#house_id,
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(t.c#vol) ELSE 0 END "C#1_C_VOL_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(t.c#vol) ELSE 0 END "C#1_C_VOL_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(t.c#sum) ELSE 0 END "C#1_C_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(t.c#sum) ELSE 0 END "C#1_C_SUM_2"
---                         FROM t#charge t,
---                              t#account a,
---                              v#work w,
---                              t#rooms r
---                         WHERE 1 = 1
---                           AND t.c#mn >= m_beg
---                           AND t.c#mn <= m_end
---                           --and r.c#house_id = 5337
---                           AND w.c#id = t.c#work_id
---                           AND a.c#id = t.c#account_id
---                           AND r.c#id = a.c#rooms_id
---
---                         GROUP BY r.c#house_id,
---                                  w.c#tar_val) ch1
---
---                     GROUP BY ch1.c#house_id) ch,
---
---                 (SELECT c#house_id,
---                         SUM(C#1_MC_SUM_1) MC_SUM_1,
---                         SUM(C#1_MC_SUM_2) MC_SUM_2,
---                         SUM(C#1_M_SUM_1) M_SUM_1,
---                         SUM(C#1_M_SUM_2) M_SUM_2,
---                         SUM(C#1_MP_SUM_1) MP_SUM_1,
---                         SUM(C#1_MP_SUM_2) MP_SUM_2,
---                         SUM(C#1_P_SUM_1) P_SUM_1,
---                         SUM(C#1_P_SUM_2) P_SUM_2,
---                         SUM(C#1_FC_SUM_1) FC_SUM_1,
---                         SUM(C#1_FC_SUM_2) FC_SUM_2,
---                         SUM(C#1_FP_SUM_1) FP_SUM_1,
---                         SUM(C#1_FP_SUM_2) FP_SUM_2
---
---                     FROM (SELECT r.c#house_id,
---                                  w.c#tar_val
---                                  --,p#mn_utils.get#mn(t.c#date) "C#MN"
---                                  ,
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MC' THEN t.c#sum END) ELSE 0 END "C#1_MC_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MC' THEN t.c#sum END) ELSE 0 END "C#1_MC_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'M' THEN t.c#sum END) ELSE 0 END "C#1_M_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'M' THEN t.c#sum END) ELSE 0 END "C#1_M_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MP' THEN t.c#sum END) ELSE 0 END "C#1_MP_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'MP' THEN t.c#sum END) ELSE 0 END "C#1_MP_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'P' THEN t.c#sum END) ELSE 0 END "C#1_P_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'P' THEN t.c#sum END) ELSE 0 END "C#1_P_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FC' THEN t.c#sum END) ELSE 0 END "C#1_FC_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FC' THEN t.c#sum END) ELSE 0 END "C#1_FC_SUM_2",
---                                  CASE WHEN w.c#tar_val IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FP' THEN NVL(t.c#sum, 0) END) ELSE 0 END "C#1_FP_SUM_1",
---                                  CASE WHEN w.c#tar_val NOT IN (5.98, 6.34, 6.74) THEN SUM(CASE WHEN t.c#type_tag = 'FP' THEN NVL(t.c#sum, 0) END) ELSE 0 END "C#1_FP_SUM_2"
---
---                         FROM v#op t,
---                              v#work w,
---                              t#account a,
---                              t#rooms r
---                         WHERE 1 = 1
---                           AND t.c#date >= p#mn_utils.get#date(m_beg)
---                           AND t.c#date < p#mn_utils.get#date(m_end + 1)
---                           AND t.c#valid_tag = 'Y'
---                           AND w.c#id = t.c#work_id
---                           AND a.c#id = t.c#account_id
---                           AND r.c#id = a.c#rooms_id
---                         GROUP BY r.c#house_id,
---                                  w.c#tar_val) op1
---                     GROUP BY c#house_id) op,
---                 fcr.t#house h,
---                 (SELECT house_id,
---                         ROUND(column2, 2) col
---                     FROM fcr.t#temp_IV tV
---                       LEFT JOIN fcr.t#trans_2016 trV
---                         ON (tV.column1 = trV.address)) ttt,
---                 (SELECT th.c#id,
---                         tIII.Ostatok
---                     FROM fcr.t#house th
---                       LEFT JOIN fcr.t#temp_ostatok_III tIII
---                         ON (P#UTILS.GET#HOUSE_ADDR(th.c#id) = tIII.Address)) toIII
---            WHERE 1 = 1
---              AND h.c#id = sg.c#house_id
---              AND h.c#id = ch.c#house_id
---              AND h.c#id = op.c#house_id (+)
---              AND h.c#id = ttt.house_id (+)
---              AND h.c#id (+) = toIII.c#id
---            ORDER BY P#UTILS.GET#HOUSE_ADDR(h.c#id)) a
---          LEFT JOIN (SELECT th.c#id,
---                            t.*
---              FROM fcr.t#house th
---                LEFT JOIN fcr.t#temp_II t
---                  ON (P#UTILS.GET#HOUSE_ADDR(th.c#id) = t.Address)) tII
---            ON (a.address = tII.address);
-
       RETURN ret;
     END;
 
@@ -724,6 +406,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                 CASE WHEN DOLG_END > 0 THEN DOLG_END ELSE 0 END N7,
                 CASE WHEN DOLG_END < 0 THEN ABS(DOLG_END) ELSE 0 END N8,
                 PENI_SUM N9
+                ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
             from
                alls
             where
@@ -733,156 +416,6 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             ;   
                 
 
---      SELECT P#UTILS.GET#HOUSE_ADDR(r.c#house_id),
---             r.c#flat_num
---             --,a.c#rooms_id
---             --,a.c#rooms_pn
---             --,a.c#date
---             --,a.c#end_date
---             --,a.c#num
---             --,a.c#sn
---             --,aop.c#out_num
---             --,t.c#account_id
---             --  ,p#mn_utils.get#date(tt.c#mn) mn
---             /*  ,sg.c#0_c_vol --накопл. вх. объем
---               ,sg.c#0_c_sum --накопл. вх. сальдо
---               ,sg.c#0_mc_sum
---               ,sg.c#0_m_sum
---               ,sg.c#0_mp_sum
---               ,sg.c#0_p_sum
---               ,sg.c#0_fc_sum            
---               ,sg.c#0_fp_sum            
---               ,ch.c#1_c_vol --объем
---               ,ch.c#1_c_sum --начислено
---               ,op.c#1_mc_sum --изм. начисления
---               ,op.c#1_m_sum --изменения
---               ,op.c#1_mp_sum --изм. оплаты
---               ,op.c#1_p_sum --оплачено
---               ,op.c#1_fc_sum --начислено пени
---               ,op.c#1_fp_sum --оплачено пени */,
---             CASE WHEN NVL(c#0_c_sum, 0) + NVL(c#0_mc_sum, 0) + NVL(c#0_m_sum, 0) - NVL(c#0_mp_sum, 0) -
---                 NVL(c#0_p_sum, 0) > 0 THEN NVL(c#0_c_sum, 0) + NVL(c#0_mc_sum, 0) + NVL(c#0_m_sum, 0) - NVL(c#0_mp_sum, 0) -
---                   NVL(c#0_p_sum, 0) ELSE 0 END saldo_begin_1,
---             CASE WHEN NVL(c#0_c_sum, 0) + NVL(c#0_mc_sum, 0) + NVL(c#0_m_sum, 0) - NVL(c#0_mp_sum, 0) - NVL(c#0_p_sum, 0) < 0 THEN -1 * (NVL(c#0_c_sum, 0) + NVL(c#0_mc_sum, 0) + NVL(c#0_m_sum, 0) - NVL(c#0_mp_sum, 0) - NVL(c#0_p_sum, 0)) ELSE 0 END saldo_begin_2,
---             ch.c#1_c_sum charging,
---             NVL(c#1_mp_sum, 0) + NVL(c#1_p_sum, 0) payment,
---             CASE WHEN NVL(c#1_c_sum, 0) + NVL(c#1_mc_sum, 0) + NVL(c#1_m_sum, 0) - NVL(c#1_mp_sum, 0) - NVL(c#1_p_sum, 0) > 0 THEN NVL(c#1_c_sum, 0) + NVL(c#1_mc_sum, 0) + NVL(c#1_m_sum, 0) - NVL(c#1_mp_sum, 0) - NVL(c#1_p_sum, 0) ELSE 0 END saldo_end_1,
---             CASE WHEN (NVL(c#1_c_sum, 0) + NVL(c#1_mc_sum, 0) + NVL(c#1_m_sum, 0) - NVL(c#1_mp_sum, 0) - NVL(c#1_p_sum, 0)) < 0 THEN -1 * (NVL(c#1_c_sum, 0) + NVL(c#1_mc_sum, 0) + NVL(c#1_m_sum, 0) - NVL(c#1_mp_sum, 0) - NVL(c#1_p_sum, 0)) ELSE 0 END saldo_end_2,
---             NVL(op.c#1_fp_sum, 0) peni--оплачено пени
---
---        FROM (SELECT DISTINCT c#account_id
---                 FROM t#obj) t
---
---             --    ,(select 181 + level - 1 "C#MN"
---             --        from table(ttab#number(0))
---             --       where 181 <= 183
---             --      connect by level <= 183 - 181 + 1) tt
---
---             ,
---             (SELECT t.c#account_id
---                     --,t.c#mn
---                     ,
---                     SUM(tt.c#c_vol) "C#0_C_VOL",
---                     SUM(tt.c#c_sum) "C#0_C_SUM",
---                     SUM(tt.c#mc_sum) "C#0_MC_SUM",
---                     SUM(tt.c#m_sum) "C#0_M_SUM",
---                     SUM(tt.c#mp_sum) "C#0_MP_SUM",
---                     SUM(tt.c#p_sum) "C#0_P_SUM",
---                     SUM(tt.c#fc_sum) "C#0_FC_SUM",
---                     SUM(tt.c#fp_sum) "C#0_FP_SUM"
---
---                 FROM t#store t,
---                      t#storage tt,
---                      t#account a,
---                      t#rooms r
---                 WHERE 1 = 1
---                   -- and t.c#mn >= 181
---                   AND t.c#mn = m_beg - 1
---                   AND tt.c#account_id = t.c#account_id
---                   AND tt.c#work_id = t.c#work_id
---                   AND tt.c#doer_id = t.c#doer_id
---                   AND tt.c#mn = (SELECT MAX(c#mn)
---                       FROM t#storage
---                       WHERE c#account_id = t.c#account_id
---                         AND c#work_id = t.c#work_id
---                         AND c#doer_id = t.c#doer_id
---                         AND c#mn <= t.c#mn)
---                   --and r.c#house_id = a#house_id
---                   AND a.c#id = t.c#account_id
---                   AND r.c#id = a.c#rooms_id
---                 GROUP BY t.c#account_id
---             --,t.c#mn
---             ) sg -- накопления (входящие)
---             ,
---             (SELECT t.c#account_id
---                     -- ,t.c#mn
---                     ,
---                     SUM(t.c#vol) "C#1_C_VOL",
---                     SUM(t.c#sum) "C#1_C_SUM"
---                 FROM t#charge t,
---                      t#account a,
---                      t#rooms r
---                 WHERE 1 = 1
---                   AND t.c#mn >= m_beg
---                   AND t.c#mn <= m_end
---                   --     and r.c#house_id = a#house_id
---                   AND a.c#id = t.c#account_id
---                   AND r.c#id = a.c#rooms_id
---                 GROUP BY t.c#account_id
---             --,t.c#mn
---             ) ch -- начисления
---             ,
---             (SELECT t.c#account_id
---                     --,p#mn_utils.get#mn(t.c#date) "C#MN"
---                     ,
---                     SUM(CASE WHEN t.c#type_tag = 'MC' THEN t.c#sum END) "C#1_MC_SUM",
---                     SUM(CASE WHEN t.c#type_tag = 'M' THEN t.c#sum END) "C#1_M_SUM",
---                     SUM(CASE WHEN t.c#type_tag = 'MP' THEN t.c#sum END) "C#1_MP_SUM",
---                     SUM(CASE WHEN t.c#type_tag = 'P' THEN t.c#sum END) "C#1_P_SUM",
---                     SUM(CASE WHEN t.c#type_tag = 'FC' THEN t.c#sum END) "C#1_FC_SUM",
---                     SUM(CASE WHEN t.c#type_tag = 'FP' THEN t.c#sum END) "C#1_FP_SUM"
---
---                 FROM v#op t,
---                      t#account a,
---                      t#rooms r,
---                      t#account_op aop
---                 WHERE 1 = 1
---                   AND t.c#date >= p#mn_utils.get#date(m_beg)
---                   AND t.c#date < p#mn_utils.get#date(m_end + 1)
---                   AND t.c#valid_tag = 'Y'
---                   --and r.c#house_id = a#house_id
---                   AND a.c#id = t.c#account_id
---                   AND r.c#id = a.c#rooms_id
---                   AND a.c#id = aop.c#account_id (+)
---                   AND a.c#date = aop.c#date (+)
---                 GROUP BY t.c#account_id
---             --,p#mn_utils.get#mn(t.c#date)
---             ) op -- изменения и оплата
---             ,
---             v#account a,
---             t#rooms r,
---             t#account_op aop
---        WHERE 1 = 1
---          AND ((a.c#end_date IS NULL)
---          OR (a.c#end_date > TO_DATE(TRIM('01.06.2014'), 'dd.mm.yyyy')))
---          --and r.c#house_id = 1091
---          AND (sg.c#account_id IS NOT NULL
---          OR ch.c#account_id IS NOT NULL
---          OR op.c#account_id IS NOT NULL)
---          -- and r.c#house_id = a#house_id
---          AND t.c#account_id = sg.c#account_id (+)
---          --and tt.c#mn = sg.c#mn(+)
---          AND t.c#account_id = ch.c#account_id (+)
---          --and tt.c#mn = ch.c#mn(+)
---          AND t.c#account_id = op.c#account_id (+)
---          --and tt.c#mn = op.c#mn(+)
---          AND a.c#id = t.c#account_id
---          AND r.c#id = a.c#rooms_id
---          AND a.c#id = aop.c#account_id (+)
---          AND a.c#date = aop.c#date (+)
---        ORDER BY t.c#account_id,
---                 r.c#flat_num
---      ;
 
       RETURN ret;
     END;
@@ -1021,12 +554,12 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                                         AND c#person_id = a#person_id)) t2
                             WHERE c#person_id = a#person_id) t
                           ON (tc.c#account_id = t.c#account_id
-                          AND tc.c#a_mn < fcr.p#mn_utils.GET#MN(t.c#next_date))
+                          AND tc.c#a_mn <= fcr.p#mn_utils.GET#MN(t.c#next_date))
                         LEFT JOIN (SELECT vw.C#ID,
                                           vw.c#date,
                                           tobj.c#account_id,
                                           vw.c#tar_val
-                            FROM fcr.t#obj tobj
+                            FROM fcr.v#obj tobj
                               INNER JOIN fcr.v#work vw
                                 ON (tobj.c#work_id = vw.c#id)) v
                           ON (v.c#account_id = tc.c#account_id
@@ -1053,7 +586,360 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
       RETURN res;
     END;
 
-  FUNCTION LST#REESTR(a#person_id INTEGER)
+  FUNCTION LST#REESTR(  a#person_id  INTEGER, 
+                        a#date_begin VARCHAR2 default null,
+                        a#date_end   VARCHAR2 default null)
+    RETURN sys_refcursor
+    IS
+      res      sys_refcursor;
+      a#mn_begin NUMBER;
+      a#mn_end NUMBER;
+    BEGIN
+        if a#date_begin is null then
+            a#mn_begin := 162;
+        else
+            a#mn_begin := fcr.p#mn_utils.get#mn(to_date(a#date_begin,'dd.mm.yyyy'));
+        end if;
+
+        if a#date_begin is null then
+            a#mn_end := fcr.p#utils.GET#OPEN_MN;
+        else
+            a#mn_end := fcr.p#mn_utils.get#mn(to_date(a#date_end,'dd.mm.yyyy'));
+        end if;
+        
+      OPEN res FOR
+      SELECT a.C#NUM,
+             fcr.p#utils.GET#ROOMS_ADDR(a.C#ROOMS_ID) AS address,
+             a.C#DATE AS date_begin,
+             a.C#END_DATE AS date_end,
+             (SELECT SUM(vrs.C#AREA_VAL)
+                 FROM fcr.v#account va
+                   INNER JOIN fcr.v#rooms_spec vrs
+                     ON (va.c#rooms_id = vrs.c#rooms_id)
+                 WHERE va.c#id = a.c#id) AS area,
+             SUM(r.nach) AS charge,
+             SUM(opl) AS opl
+        FROM (SELECT *
+            FROM v#account
+              ) a
+          INNER JOIN (SELECT ch.m,
+                             ch.c#account_id,
+                             SUM(ch.nach) nach,
+                             SUM(NVL(op.sum_op, 0)) opl
+              FROM (SELECT t1.m,
+                           t1.c#account_id,
+                           SUM(nach) nach
+                  FROM (SELECT 
+                        t.c#person_id,
+                               TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
+                               'mm.yyyy') m,
+                               tc.c#account_id,
+                               v.c#tar_val,
+                               SUM(tc.c#sum) nach
+                      FROM fcr.t#charge tc
+                        INNER JOIN (SELECT *
+                            FROM (SELECT asp.c#person_id,
+                                         asp.c#account_id,
+                                         a.c#num,
+                                         asp.c#date,
+                                         NVL(LEAD(asp.c#date)
+                                         OVER (PARTITION BY
+                                         asp.c#account_id
+                                         ORDER BY
+                                         asp.c#date),
+                                         fcr.p#mn_utils.GET#DATE(a#mn_end + 1)) "C#NEXT_DATE"
+--                                         fcr.p#mn_utils.GET#DATE(fcr.p#utils.GET#OPEN_MN + 1)) "C#NEXT_DATE"
+                                FROM v#account_spec asp
+                                  INNER JOIN t#account a
+                                    ON (a.c#id =
+                                    asp.c#account_id)
+                                WHERE 1 = 1
+                                  AND asp.c#valid_tag = 'Y'
+                                  AND asp.c#account_id IN (SELECT c#account_id
+                                      FROM v#account_spec
+                                      WHERE 1 = 1
+                                        AND c#valid_tag = 'Y'
+                                        AND c#person_id =
+                                        a#person_id)) t2
+                            WHERE c#person_id = a#person_id) t
+                          ON (tc.c#account_id = t.c#account_id
+--                          AND tc.c#a_mn <
+                          AND tc.c#a_mn between a#mn_begin and
+                          fcr.p#mn_utils.GET#MN(t.c#next_date))
+                        LEFT JOIN (SELECT vw.C#ID,
+                                          vw.c#date,
+                                          tobj.c#account_id,
+                                          vw.c#tar_val
+                            FROM fcr.v#obj tobj
+                              INNER JOIN fcr.v#work vw
+                                ON (tobj.c#work_id = vw.c#id)) v
+                          ON (v.c#account_id = tc.c#account_id
+                          AND tc.c#work_id = v.c#id)
+                      WHERE 1 = 1
+                      GROUP BY t.c#person_id,
+                               TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
+                               'mm.yyyy'),
+                               tc.c#account_id,
+                               v.c#tar_val) t1
+                  GROUP BY 
+                  
+                           t1.c#person_id,
+                           t1.m,
+                           t1.c#account_id
+--                           t1.c#tar_val
+                           ) ch
+                LEFT JOIN (SELECT c#account_id,
+                                  m,
+                                  SUM(sum_op) sum_op
+                    FROM (SELECT vop.c#account_id,
+                                 TO_CHAR(CASE 
+                                    WHEN (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id) > c#real_date
+                                    then (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id)
+                                 
+                                    WHEN MONTHS_BETWEEN(c#real_date, (SELECT c#end_date
+                                         FROM v#account va
+                                         WHERE va.c#id =
+                                           vop.c#account_id)) > -1 THEN CASE WHEN (SELECT c#end_date
+                                               FROM v#account va
+                                               WHERE va.c#id =
+                                                 vop.c#account_id) > (SELECT c#date
+                                               FROM v#account va
+                                               WHERE va.c#id =
+                                                 vop.c#account_id) THEN ADD_MONTHS((SELECT c#end_date
+                                                 FROM v#account va
+                                                 WHERE va.c#id =
+                                                   vop.c#account_id),
+                                             -1) ELSE (SELECT c#end_date
+                                               FROM v#account va
+                                               WHERE va.c#id = vop.c#account_id) END ELSE CASE WHEN MONTHS_BETWEEN(c#real_date,
+                                         t.c#next_date) > -1 THEN ADD_MONTHS(t.c#next_date, -1) ELSE c#real_date END END,
+                                 'mm.yyyy') m,
+                                 SUM(c#sum) sum_op
+                        FROM fcr.v#op vop
+                          INNER JOIN (SELECT *
+                              FROM (SELECT asp.c#person_id,
+                                           asp.c#account_id,
+                                           a.c#num,
+                                           asp.c#date,
+                                           NVL(LEAD(asp.c#date)
+                                           OVER (PARTITION BY
+                                           asp.c#account_id
+                                           ORDER BY
+                                           asp.c#date),
+                                           fcr.p#mn_utils.GET#DATE(a#mn_end + 1)) "C#NEXT_DATE"
+--                                           fcr.p#mn_utils.GET#DATE(fcr.p#utils.GET#OPEN_MN + 1)) "C#NEXT_DATE"
+                                  FROM v#account_spec asp
+                                    INNER JOIN t#account a
+                                      ON (a.c#id =
+                                      asp.c#account_id)
+                                  WHERE 1 = 1
+                                    AND asp.c#valid_tag = 'Y'
+                                    AND asp.c#account_id IN (SELECT c#account_id
+                                        FROM v#account_spec
+                                        WHERE 1 = 1
+                                          AND c#valid_tag = 'Y'
+                                          AND c#person_id = a#person_id)) t2
+                              WHERE c#person_id =
+                                a#person_id) t
+                            ON (vop.c#account_id = t.c#account_id
+--                            AND vop.c#a_mn <
+                            AND vop.c#a_mn between a#mn_begin and
+                            fcr.p#mn_utils.GET#MN(t.c#next_date))
+                        WHERE 1 = 1
+                        GROUP BY vop.c#account_id,
+                                 c#real_date,
+                                 t.c#next_date) t
+                    GROUP BY c#account_id,
+                             m) op
+                  ON (ch.m = op.m
+                  AND ch.c#account_id = op.c#account_id)
+              GROUP BY ch.m,
+                       ch.c#account_id) r
+            ON (r.c#account_id = a.C#ID)
+        GROUP BY fcr.p#utils.GET#ROOMS_ADDR(a.C#ROOMS_ID),
+                 a.C#NUM,
+                 a.c#id,
+                 a.C#DATE,
+                 a.C#END_DATE
+        HAVING
+             SUM(r.nach) <> 0
+             OR SUM(opl) <> 0
+        ORDER BY fcr.p#utils.GET#ROOMS_ADDR(a.C#ROOMS_ID),
+                 a.C#NUM;
+      RETURN res;
+    END;
+
+
+PROCEDURE LST#REESTR2(a#person_id  INTEGER) IS
+      a#mn_begin NUMBER;
+      a#mn_end NUMBER;
+    BEGIN
+        a#mn_begin := 162;
+        a#mn_end := fcr.p#utils.GET#OPEN_MN;
+
+    delete from TT_LST#REESTR;
+    COMMIT;
+    insert into TT_LST#REESTR
+      SELECT a.C#NUM,
+             fcr.p#utils.GET#ROOMS_ADDR(a.C#ROOMS_ID) AS address,
+             a.C#DATE AS date_begin,
+             a.C#END_DATE AS date_end,
+             (SELECT SUM(vrs.C#AREA_VAL)
+                 FROM fcr.v#account va
+                   INNER JOIN fcr.v#rooms_spec vrs
+                     ON (va.c#rooms_id = vrs.c#rooms_id)
+                 WHERE va.c#id = a.c#id) AS area,
+             SUM(r.nach) AS charge,
+             SUM(opl) AS opl
+        FROM (SELECT *
+            FROM v#account
+              ) a
+          INNER JOIN (SELECT ch.m,
+                             ch.c#account_id,
+                             SUM(ch.nach) nach,
+                             SUM(NVL(op.sum_op, 0)) opl
+              FROM (SELECT t1.m,
+                           t1.c#account_id,
+                           SUM(nach) nach
+                  FROM (SELECT 
+                        t.c#person_id,
+                               TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
+                               'mm.yyyy') m,
+                               tc.c#account_id,
+                               v.c#tar_val,
+                               SUM(tc.c#sum) nach
+                      FROM fcr.t#charge tc
+                        INNER JOIN (SELECT *
+                            FROM (SELECT asp.c#person_id,
+                                         asp.c#account_id,
+                                         a.c#num,
+                                         asp.c#date,
+                                         NVL(LEAD(asp.c#date)
+                                         OVER (PARTITION BY
+                                         asp.c#account_id
+                                         ORDER BY
+                                         asp.c#date),
+                                         fcr.p#mn_utils.GET#DATE(a#mn_end + 1)) "C#NEXT_DATE"
+--                                         fcr.p#mn_utils.GET#DATE(fcr.p#utils.GET#OPEN_MN + 1)) "C#NEXT_DATE"
+                                FROM v#account_spec asp
+                                  INNER JOIN t#account a
+                                    ON (a.c#id =
+                                    asp.c#account_id)
+                                WHERE 1 = 1
+                                  AND asp.c#valid_tag = 'Y'
+                                  AND asp.c#account_id IN (SELECT c#account_id
+                                      FROM v#account_spec
+                                      WHERE 1 = 1
+                                        AND c#valid_tag = 'Y'
+                                        AND c#person_id =
+                                        a#person_id)) t2
+                            WHERE c#person_id = a#person_id) t
+                          ON (tc.c#account_id = t.c#account_id
+--                          AND tc.c#a_mn <
+                          AND tc.c#a_mn between a#mn_begin and
+                          fcr.p#mn_utils.GET#MN(t.c#next_date))
+                        LEFT JOIN (SELECT vw.C#ID,
+                                          vw.c#date,
+                                          tobj.c#account_id,
+                                          vw.c#tar_val
+                            FROM fcr.v#obj tobj
+                              INNER JOIN fcr.v#work vw
+                                ON (tobj.c#work_id = vw.c#id)) v
+                          ON (v.c#account_id = tc.c#account_id
+                          AND tc.c#work_id = v.c#id)
+                      WHERE 1 = 1
+                      GROUP BY t.c#person_id,
+                               TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
+                               'mm.yyyy'),
+                               tc.c#account_id,
+                               v.c#tar_val) t1
+                  GROUP BY 
+                  
+                           t1.c#person_id,
+                           t1.m,
+                           t1.c#account_id
+--                           t1.c#tar_val
+                           ) ch
+                LEFT JOIN (SELECT c#account_id,
+                                  m,
+                                  SUM(sum_op) sum_op
+                    FROM (SELECT vop.c#account_id,
+                                 TO_CHAR(CASE 
+                                    WHEN (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id) > c#real_date
+                                    then (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id)
+                                 
+                                    WHEN MONTHS_BETWEEN(c#real_date, (SELECT c#end_date
+                                         FROM v#account va
+                                         WHERE va.c#id =
+                                           vop.c#account_id)) > -1 THEN CASE WHEN (SELECT c#end_date
+                                               FROM v#account va
+                                               WHERE va.c#id =
+                                                 vop.c#account_id) > (SELECT c#date
+                                               FROM v#account va
+                                               WHERE va.c#id =
+                                                 vop.c#account_id) THEN ADD_MONTHS((SELECT c#end_date
+                                                 FROM v#account va
+                                                 WHERE va.c#id =
+                                                   vop.c#account_id),
+                                             -1) ELSE (SELECT c#end_date
+                                               FROM v#account va
+                                               WHERE va.c#id = vop.c#account_id) END ELSE CASE WHEN MONTHS_BETWEEN(c#real_date,
+                                         t.c#next_date) > -1 THEN ADD_MONTHS(t.c#next_date, -1) ELSE c#real_date END END,
+                                 'mm.yyyy') m,
+                                 SUM(c#sum) sum_op
+                        FROM fcr.v#op vop
+                          INNER JOIN (SELECT *
+                              FROM (SELECT asp.c#person_id,
+                                           asp.c#account_id,
+                                           a.c#num,
+                                           asp.c#date,
+                                           NVL(LEAD(asp.c#date)
+                                           OVER (PARTITION BY
+                                           asp.c#account_id
+                                           ORDER BY
+                                           asp.c#date),
+                                           fcr.p#mn_utils.GET#DATE(a#mn_end + 1)) "C#NEXT_DATE"
+--                                           fcr.p#mn_utils.GET#DATE(fcr.p#utils.GET#OPEN_MN + 1)) "C#NEXT_DATE"
+                                  FROM v#account_spec asp
+                                    INNER JOIN t#account a
+                                      ON (a.c#id =
+                                      asp.c#account_id)
+                                  WHERE 1 = 1
+                                    AND asp.c#valid_tag = 'Y'
+                                    AND asp.c#account_id IN (SELECT c#account_id
+                                        FROM v#account_spec
+                                        WHERE 1 = 1
+                                          AND c#valid_tag = 'Y'
+                                          AND c#person_id = a#person_id)) t2
+                              WHERE c#person_id =
+                                a#person_id) t
+                            ON (vop.c#account_id = t.c#account_id
+--                            AND vop.c#a_mn <
+                            AND vop.c#a_mn between a#mn_begin and
+                            fcr.p#mn_utils.GET#MN(t.c#next_date))
+                        WHERE 1 = 1
+                        GROUP BY vop.c#account_id,
+                                 c#real_date,
+                                 t.c#next_date) t
+                    GROUP BY c#account_id,
+                             m) op
+                  ON (ch.m = op.m
+                  AND ch.c#account_id = op.c#account_id)
+              GROUP BY ch.m,
+                       ch.c#account_id) r
+            ON (r.c#account_id = a.C#ID)
+        GROUP BY fcr.p#utils.GET#ROOMS_ADDR(a.C#ROOMS_ID),
+                 a.C#NUM,
+                 a.c#id,
+                 a.C#DATE,
+                 a.C#END_DATE
+                 ;
+        COMMIT;         
+    END;
+
+
+
+  FUNCTION LST#REESTR_OLD(a#person_id INTEGER)
     RETURN sys_refcursor
     IS
       res      sys_refcursor;
@@ -1078,7 +964,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             FROM v#account
             WHERE 1 = 1
               AND c#end_date IS NULL
-              OR c#date <> c#end_date) a
+              OR c#date <> c#end_date
+              ) a
           INNER JOIN (SELECT ch.m,
                              ch.c#account_id,
                              SUM(ch.nach) nach,
@@ -1086,7 +973,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
               FROM (SELECT t1.m,
                            t1.c#account_id,
                            SUM(nach) nach
-                  FROM (SELECT t.c#person_id,
+                  FROM (SELECT 
+                        t.c#person_id,
                                TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
                                'mm.yyyy') m,
                                tc.c#account_id,
@@ -1124,7 +1012,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                                           vw.c#date,
                                           tobj.c#account_id,
                                           vw.c#tar_val
-                            FROM fcr.t#obj tobj
+                            FROM fcr.v#obj tobj
                               INNER JOIN fcr.v#work vw
                                 ON (tobj.c#work_id = vw.c#id)) v
                           ON (v.c#account_id = tc.c#account_id
@@ -1135,15 +1023,22 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                                'mm.yyyy'),
                                tc.c#account_id,
                                v.c#tar_val) t1
-                  GROUP BY t1.c#person_id,
+                  GROUP BY 
+                  
+                           t1.c#person_id,
                            t1.m,
-                           t1.c#account_id,
-                           t1.c#tar_val) ch
+                           t1.c#account_id
+--                           t1.c#tar_val
+                           ) ch
                 LEFT JOIN (SELECT c#account_id,
                                   m,
                                   SUM(sum_op) sum_op
                     FROM (SELECT vop.c#account_id,
-                                 TO_CHAR(CASE WHEN MONTHS_BETWEEN(c#real_date, (SELECT c#end_date
+                                 TO_CHAR(CASE 
+                                    WHEN (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id) > c#real_date
+                                    then (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id)
+                                 
+                                    WHEN MONTHS_BETWEEN(c#real_date, (SELECT c#end_date
                                          FROM v#account va
                                          WHERE va.c#id =
                                            vop.c#account_id)) > -1 THEN CASE WHEN (SELECT c#end_date
@@ -1206,10 +1101,15 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                  a.c#id,
                  a.C#DATE,
                  a.C#END_DATE
+--        HAVING
+--             SUM(r.nach) <> 0
+--             OR SUM(opl) <> 0
         ORDER BY fcr.p#utils.GET#ROOMS_ADDR(a.C#ROOMS_ID),
                  a.C#NUM;
       RETURN res;
     END;
+
+
 
 
   FUNCTION LST#AKT_F_OLD(a#num    VARCHAR2,
@@ -1383,13 +1283,15 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             FROM (SELECT t1.c#person_id,
                          t1.m,
                          t1.c#account_id,
-                         t1.c#tar_val,
+--                         t1.c#tar_val,
+                         max(t1.c#tar_val) c#tar_val,
                          SUM(nach) nach
                 FROM (SELECT t.c#person_id,
                              TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
                              'mm.yyyy') m,
                              tc.c#account_id,
-                             v.c#tar_val,
+--                             v.c#tar_val,
+                             max(v.c#tar_val) c#tar_val,
                              SUM(tc.c#sum) nach
                     FROM fcr.t#charge tc
                       INNER JOIN (SELECT *
@@ -1417,13 +1319,13 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                                       a#person_id)) t2
                           WHERE c#person_id = a#person_id) t
                         ON (tc.c#account_id = t.c#account_id
-                        AND tc.c#a_mn <
+                        AND tc.c#a_mn <=
                         fcr.p#mn_utils.GET#MN(t.c#next_date))
                       LEFT JOIN (SELECT vw.C#ID,
                                         vw.c#date,
                                         tobj.c#account_id,
                                         vw.c#tar_val
-                          FROM fcr.t#obj tobj
+                          FROM fcr.v#obj tobj
                             INNER JOIN fcr.v#work vw
                               ON (tobj.c#work_id = vw.c#id)) v
                         ON (v.c#account_id = tc.c#account_id
@@ -1432,17 +1334,23 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                     GROUP BY t.c#person_id,
                              TO_CHAR(P#MN_UTILS.GET#DATE(tc.c#a_mn),
                              'mm.yyyy'),
-                             tc.c#account_id,
-                             v.c#tar_val) t1
+                             tc.c#account_id
+--                             ,v.c#tar_val
+                             ) t1
                 GROUP BY t1.c#person_id,
                          t1.m,
-                         t1.c#account_id,
-                         t1.c#tar_val) ch
+                         t1.c#account_id
+--                         ,t1.c#tar_val
+                         ) ch
               LEFT JOIN (SELECT c#account_id,
                                 m,
                                 SUM(sum_op) sum_op
                   FROM (SELECT vop.c#account_id,
-                               TO_CHAR(CASE WHEN MONTHS_BETWEEN(c#real_date, (SELECT c#end_date
+                               TO_CHAR(CASE 
+                                WHEN (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id) > c#real_date
+                                then (SELECT c#date FROM v#account va WHERE va.c#id =  vop.c#account_id)
+                               
+                               WHEN MONTHS_BETWEEN(c#real_date, (SELECT c#end_date
                                        FROM v#account va
                                        WHERE va.c#id =
                                          vop.c#account_id)) > -1 THEN CASE WHEN (SELECT c#end_date
@@ -1488,7 +1396,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                             WHERE c#person_id =
                               a#person_id) t
                           ON (vop.c#account_id = t.c#account_id
-                          AND vop.c#a_mn <
+                          AND vop.c#a_mn <=
                           fcr.p#mn_utils.GET#MN(t.c#next_date))
                       WHERE 1 = 1
                       GROUP BY vop.c#account_id,
@@ -1504,8 +1412,9 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
         GROUP BY tall.fio,
                  tall.m_date,
                  tall.tarif
-        HAVING TO_DATE('01.' || tall.m_date, 'dd.mm.yyyy') >= a#date_begin
-          AND TO_DATE('01.' || tall.m_date, 'dd.mm.yyyy') <= a#date_end
+        HAVING 
+            TO_DATE('01.' || tall.m_date, 'dd.mm.yyyy') >= a#date_begin
+            AND TO_DATE('01.' || tall.m_date, 'dd.mm.yyyy') <= a#date_end
         ORDER BY TO_DATE(tall.m_date, 'mm.yyyy');
       RETURN res;
     END;
@@ -1579,8 +1488,12 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                   WHERE c#person_id = a#person_id)
             GROUP BY TO_CHAR(c#real_date, 'mm.yyyy'),
                      o.c#cod,
-                     o.c#name) t
+                     o.c#name
+            union all
+            select '444','Нераспределенный остаток',TO_CHAR(sysdate,'mm.yyyy'),P#UTILS.GET#OSTATOK_J(a#person_id) from dual
+                     ) t
         ORDER BY TO_DATE('01.' || t.c#real_date, 'dd.mm.yyyy');
+        
       RETURN res;
     END;
 
@@ -1964,93 +1877,6 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             count(AB.ACCOUNT_ID) desc
         ;
 
-
-
---      SELECT t.c#name "РКЦ",
---             COUNT(t.c#account_id) AS "Счета",
---             SUM(NVL(t.c#area_val, 0)) AS "Площадь",
---             SUM(NVL(t.c#sum, 0)) "Начислено",
---             SUM(NVL(t.p#sum, 0)) "Оплачено",
---             SUM(NVL(t.c#sum, 0) - NVL(t.p#sum, 0)) "Долг"
---        FROM (SELECT acc.c#name,
---                     vc.c#account_id,
---                     NVL(acc.c#account_id, 0) c#id,
---                     c#house_id,
---                     acc.c#area_val,
---                     vc.c#sum,
---                     vc.p#sum
---            FROM (SELECT ac.c#id c#account_id,
---                         acc_op.c#name,
---                         r.c#house_id,
---                         vrs.c#area_val
---                FROM (SELECT *
---                    FROM fcr.v#account
---                    WHERE (c#end_date IS NULL
---                      OR c#end_date > TO_DATE('01.06.2014', 'dd.mm.yyyy'))
---                      AND c#valid_tag = 'Y') ac
---                  LEFT JOIN (SELECT va.c#id,
---                                    td.c#name
---                      FROM fcr.v#account va
---                        INNER JOIN fcr.t#rooms tr
---                          ON (va.c#rooms_id = tr.c#id)
---                        INNER JOIN fcr.v#doing vd
---                          ON (vd.C#HOUSE_ID = tr.c#house_id)
---                        INNER JOIN fcr.t#doer td
---                          ON (vd.C#DOER_ID = td.c#id)
---                      WHERE 1 = 1
---                        AND (vd.c#end_date IS NULL
---                        OR vd.c#end_date <> vd.c#date)
---                      GROUP BY va.c#id,
---                               td.c#name) acc_op
---                    ON (acc_op.c#id = ac.c#id)
---                  INNER JOIN fcr.t#rooms r
---                    ON (ac.c#rooms_id = r.c#id)
---                  INNER JOIN (SELECT c#rooms_id,
---                                     c#area_val
---                      FROM fcr.v#rooms_spec rs
---                      WHERE c#date = (SELECT MAX(c#date)
---                            FROM fcr.v#rooms_spec
---                            WHERE c#rooms_id = rs.c#rooms_id)
---                      GROUP BY c#rooms_id,
---                               c#area_val) vrs
---                    ON (r.c#id = vrs.c#rooms_id)
---                  INNER JOIN (SELECT c#house_id,
---                                     c#acc_type
---                      FROM fcr.v#banking tbo
---                        INNER JOIN fcr.t#b_account ba
---                          ON (tbo.c#b_account_id = ba.c#id)) type_Acc
---                    ON (type_acc.c#house_id = r.c#house_id)
---                WHERE type_Acc.c#acc_type IN (1, 2)
---                GROUP BY ac.c#id,
---                         acc_op.c#name,
---                         r.c#house_id,
---                         vrs.c#area_val) acc
---              RIGHT JOIN (SELECT c.c#account_id,
---                                 NVL(c.c#sum, 0) c#sum,
---                                 NVL(op.p#sum, 0) p#sum
---                  FROM (SELECT c#account_id,
---                               SUM(NVL(c#sum, 0)) AS c#sum
---                      FROM fcr.t#charge
---                      WHERE c#a_mn BETWEEN fcr.p#mn_utils.GET#MN(a#date_begin) AND fcr.p#mn_utils.GET#MN(a#date_end)
---                      GROUP BY c#account_id) c
---                    LEFT JOIN (SELECT c#account_id,
---                                      SUM(NVL(c#sum, 0)) AS p#sum
---                        FROM fcr.v#op
---                        WHERE c#real_date BETWEEN
---                          CASE WHEN (SELECT c#date
---                                  FROM v#account
---                                  WHERE c#id = c#account_id) > a#date_begin THEN (SELECT c#date
---                                    FROM v#account
---                                    WHERE c#id = c#account_id) ELSE a#date_begin END
---                          AND a#date_end
---                        GROUP BY c#account_id) op
---                      ON (c.c#account_id = op.c#account_id)) vc
---                ON (vc.c#account_id = acc.c#account_id)
---            WHERE 1 = 1) t
---        WHERE t.c#id <> 0
---        --and acc.c#account_id = 207252
---        GROUP BY t.c#name
---      ;
       RETURN res;
     END;
 
@@ -2533,102 +2359,6 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
 
 
 
-
-
-
-
-    
---      SELECT omsu AS "МО",
---             SUM(NVL(CountAccL, 0)) AS "Кол-во счетов",
---             SUM(NVL(AreaL, 0)) AS "Площадь",
---             SUM(NVL(SumOutL, 0)) AS "Сумма начислено",
---             SUM(NVL(SumInL, 0)) AS "Сумма оплачено",
---             SUM(NVL(SumResL, 0)) AS "Долг",
---             SUM(NVL(CountAccN, 0)) AS "Кол-во спец счетов",
---             SUM(NVL(AreaN, 0)) AS "Площадь",
---             SUM(NVL(SumOutN, 0)) AS "Сумма начислено",
---             SUM(NVL(SumInN, 0)) AS "Сумма оплачено",
---             SUM(NVL(SumResN, 0)) AS "Долг"
---        FROM (SELECT TRIM(SUBSTR(fcr.p#utils.get#house_addr(t.c#house_id), 1, INSTR(fcr.p#utils.get#house_addr(t.c#house_id), ' ') - 1)) omsu,
---                     CASE WHEN t.c#acc_type = 1 THEN COUNT(t.c#account_id) END CountAccL,
---                     CASE WHEN t.c#acc_type = 1 THEN SUM(NVL(t.c#area_val, 0)) END AreaL,
---                     CASE WHEN t.c#acc_type = 1 THEN SUM(NVL(t.c#Sum, 0)) END SumOutL,
---                     CASE WHEN t.c#acc_type = 1 THEN SUM(NVL(t.p#Sum, 0)) END SumInL,
---                     CASE WHEN t.c#acc_type = 1 THEN SUM(NVL(t.c#Sum, 0)) - SUM(NVL(t.p#Sum, 0)) END SumResL,
---                     CASE WHEN t.c#acc_type = 2 THEN COUNT(t.c#account_id) END CountAccN,
---                     CASE WHEN t.c#acc_type = 2 THEN SUM(NVL(t.c#area_val, 0)) END AreaN,
---                     CASE WHEN t.c#acc_type = 2 THEN SUM(NVL(t.c#Sum, 0)) END SumOutN,
---                     CASE WHEN t.c#acc_type = 2 THEN SUM(NVL(t.p#Sum, 0)) END SumInN,
---                     CASE WHEN t.c#acc_type = 2 THEN SUM(NVL(t.c#Sum, 0)) - SUM(NVL(t.p#Sum, 0)) END SumResN
---            FROM (SELECT acc.c#acc_type,
---                         vc.c#account_id,
---                         NVL(acc.c#account_id, 0) c#id,
---                         c#house_id,
---                         acc.c#area_val,
---                         vc.c#sum,
---                         vc.p#sum
---                FROM (SELECT ac.c#id c#account_id,
---                             type_acc.c#acc_type,
---                             r.c#house_id,
---                             vrs.c#area_val
---                    FROM (SELECT *
---                        FROM fcr.v#account
---                        WHERE (c#end_date IS NULL
---                          OR c#end_date > TO_DATE('01.06.2014', 'dd.mm.yyyy'))
---                          AND c#valid_tag = 'Y') ac
---                      INNER JOIN fcr.t#rooms r
---                        ON (ac.c#rooms_id = r.c#id)
---                      INNER JOIN (SELECT c#rooms_id,
---                                         c#area_val
---                          FROM fcr.v#rooms_spec rs
---                          WHERE c#date = (SELECT MAX(c#date)
---                                FROM fcr.v#rooms_spec
---                                WHERE c#rooms_id = rs.c#rooms_id)
---                          GROUP BY c#rooms_id,
---                                   c#area_val) vrs
---                        ON (r.c#id = vrs.c#rooms_id)
---                      INNER JOIN (SELECT c#house_id,
---                                         c#acc_type
---                          FROM fcr.v#banking tbo
---                            INNER JOIN fcr.t#b_account ba
---                              ON (tbo.c#b_account_id = ba.c#id)) type_Acc
---                        ON (type_acc.c#house_id = r.c#house_id)
---                    WHERE type_Acc.c#acc_type IN (1, 2)
---                    GROUP BY ac.c#id,
---                             type_acc.c#acc_type,
---                             r.c#house_id,
---                             vrs.c#area_val) acc
---                  RIGHT JOIN (SELECT c.c#account_id,
---                                     NVL(c.c#sum, 0) c#sum,
---                                     NVL(op.p#sum, 0) p#sum
---                      FROM (SELECT c#account_id,
---                                   SUM(NVL(c#sum, 0)) AS c#sum
---                          FROM fcr.t#charge
---                          WHERE c#a_mn BETWEEN fcr.p#mn_utils.GET#MN(a#date_begin) AND fcr.p#mn_utils.GET#MN(a#date_end)
---                          GROUP BY c#account_id) c
---                        LEFT JOIN (SELECT c#account_id,
---                                          SUM(NVL(c#sum, 0)) AS p#sum
---                            FROM fcr.v#op
---                            WHERE c#real_date BETWEEN
---                              CASE WHEN (SELECT c#date
---                                      FROM v#account
---                                      WHERE c#id = c#account_id) > a#date_begin THEN (SELECT c#date
---                                        FROM v#account
---                                        WHERE c#id = c#account_id) ELSE a#date_begin END
---                              AND a#date_end
---                            GROUP BY c#account_id) op
---                          ON (c.c#account_id = op.c#account_id)) vc
---                    ON (vc.c#account_id = acc.c#account_id)
---                WHERE 1 = 1) t
---            WHERE t.c#id <> 0
---            -- and acc.c#account_id = 207252
---            GROUP BY TRIM(SUBSTR(fcr.p#utils.get#house_addr(t.c#house_id), 1, INSTR(fcr.p#utils.get#house_addr(t.c#house_id), ' ') - 1)),
---                     t.c#acc_type) ttt
---        GROUP BY omsu
---        ORDER BY omsu
---      ;
-
-
       RETURN res;
     END;
 
@@ -2939,7 +2669,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                        c#doer_id,
                        c#a_mn
               HAVING SUM(c#vol) > 0
-                AND SUM(c#sum) > 0) tch
+--                AND SUM(c#sum) > 0 -- GERA 03.11.2017
+                ) tch
             ON (tch.c#account_id = acc.c#id)
           LEFT JOIN (SELECT c#account_id,
                             c#date,
@@ -2966,7 +2697,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                 AND c#account_id = a#account_id
               GROUP BY c#account_id,
                        c#real_date
-              HAVING SUM(NVL(c#sum, 0)) > 0) vop
+--              HAVING SUM(NVL(c#sum, 0)) > 0 -- GERA 03.11.2017
+            ) vop
             ON (tch.c#account_id = vop.c#account_id
             AND tch.c#a_mn = FCR.P#MN_UTILS.GET#MN(vop.c#real_date))
         WHERE acc.c#num = a#num
@@ -2978,6 +2710,66 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
       RETURN res;
     END;
 
+
+  FUNCTION LST#GGI_PRIL6(p_YEAR VARCHAR2) RETURN sys_refcursor AS
+      res sys_refcursor;
+  BEGIN
+    OPEN res FOR
+        with
+            end as (
+                SELECT
+                    HB.HOUSE_ID,
+                    regexp_substr(ADDR, '[^ ]+')                  MUN,
+                    CASE WHEN H.C#POST_CODE IS NOT NULL
+                        THEN H.C#POST_CODE || ', ' END || A.ADDR ADR,
+                    HI.C#AREA_VAL                                 AREA,
+                    HI.C#2ND_DATE                                 BEGIN_DATE,
+                    HB.PAY_SUM_TOTAL PAY_SUM,
+                    HB.JOB_SUM_TOTAL TOTAL_JOB_SUM,
+                    HB.OWNERS_JOB_SUM_TOTAL OWNERS_JOB_SUM,
+                    HB.DOLG_SUM_TOTAL TOTAL_DOLG_SUM
+                FROM
+                    T#TOTAL_HOUSE  HB
+                    JOIN MV_HOUSES_ADRESES A ON (HB.HOUSE_ID = A.HOUSE_ID)
+                    JOIN T#HOUSE H ON (HB.HOUSE_ID = H.C#ID)
+                    JOIN T#HOUSE_INFO HI ON (H.C#ID = HI.C#HOUSE_ID)
+                WHERE
+                    MN = P#MN_UTILS.GET#MN(TO_DATE('31.12.'||p_YEAR,'dd.mm.yyyy'))
+                    AND HI.C#END_DATE IS NULL
+                ORDER BY
+                    ADDR
+            )
+            ,beg as (
+                select
+                    HOUSE_ID,
+                    DOLG_SUM_TOTAL OLD_DOLG_SUM
+                from
+                    T#TOTAL_HOUSE
+                WHERE
+                    MN = P#MN_UTILS.GET#MN(TO_DATE('31.12.'||p_YEAR,'dd.mm.yyyy'))-12
+            )
+        select
+            MUN,
+            ADR,
+            AREA,
+            BEGIN_DATE,
+            PAY_SUM,
+            TOTAL_JOB_SUM,
+            OWNERS_JOB_SUM,
+            TOTAL_DOLG_SUM,
+            CASE
+                WHEN OLD_DOLG_SUM < 0 and TOTAL_DOLG_SUM < 0 THEN
+                    GREATEST(TOTAL_DOLG_SUM,OLD_DOLG_SUM)
+                ELSE
+                    GREATEST(0,LEAST(TOTAL_DOLG_SUM,OLD_DOLG_SUM))
+            END OLD_DOLG_SUM
+        from
+            end
+            join beg on (end.HOUSE_ID = beg.HOUSE_ID)
+        ;
+    
+    RETURN res;
+  END LST#GGI_PRIL6;
 
 END P#REPORTS;
 /
