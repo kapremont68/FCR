@@ -1094,35 +1094,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
                  WHERE a#lo_mn <= a#hi_mn
                CONNECT BY LEVEL <= a#hi_mn - a#lo_mn + 1) tt,
              (
---             SELECT t.c#account_id,
---                     t.c#mn,
---                     SUM(tt.c#c_vol) "C#0_C_VOL",
---                     SUM(tt.c#c_sum) "C#0_C_SUM",
---                     SUM(tt.c#mc_sum) "C#0_MC_SUM",
---                     SUM(tt.c#m_sum) "C#0_M_SUM",
---                     SUM(tt.c#mp_sum) "C#0_MP_SUM",
---                     SUM(tt.c#p_sum) "C#0_P_SUM"
---                 FROM t#store t,
---                      t#storage tt,
---                      t#account a,
---                      t#rooms r
---                 WHERE 1 = 1
---                   AND t.c#mn >= a#lo_mn
---                   AND t.c#mn <= a#hi_mn
---                   AND tt.c#account_id = t.c#account_id
---                   AND tt.c#work_id = t.c#work_id
---                   AND tt.c#doer_id = t.c#doer_id
---                   AND tt.c#mn = (SELECT MAX(c#mn)
---                       FROM t#storage
---                       WHERE c#account_id = t.c#account_id
---                         AND c#work_id = t.c#work_id
---                         AND c#doer_id = t.c#doer_id
---                         AND c#mn <= t.c#mn)
---                   AND r.c#house_id = a#house_id
---                   AND a.c#id = t.c#account_id
---                   AND r.c#id = a.c#rooms_id
---                 GROUP BY t.c#account_id,
---                          t.c#mn
                           
                     SELECT
                         account_id c#account_id,
@@ -1142,20 +1113,20 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
                           ) sg -- накоплени€ (вход€щие)
              ,
              (SELECT t.c#account_id,
-                     t.c#mn,
+                     t.c#a_mn c#mn,
                      SUM(t.c#vol) "C#1_C_VOL",
                      SUM(t.c#sum) "C#1_C_SUM"
                  FROM t#charge t,
                       t#account a,
                       t#rooms r
                  WHERE 1 = 1
-                   AND t.c#mn >= a#lo_mn
-                   AND t.c#mn <= a#hi_mn
+                   AND t.c#a_mn >= a#lo_mn
+                   AND t.c#a_mn <= a#hi_mn
                    AND r.c#house_id = a#house_id
                    AND a.c#id = t.c#account_id
                    AND r.c#id = a.c#rooms_id
                  GROUP BY t.c#account_id,
-                          t.c#mn) ch -- начислени€
+                          t.c#a_mn) ch -- начислени€
              ,
              (SELECT t.c#account_id,
                      p#mn_utils.get#mn(t.c#real_date) "C#MN",
