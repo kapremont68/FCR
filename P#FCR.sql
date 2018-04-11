@@ -370,6 +370,10 @@ CREATE OR REPLACE PACKAGE "P#FCR"
 
   FUNCTION lst#account_changed
     RETURN sys_refcursor;
+
+    
+  function add#rooms_part(a#room_id NUMBER) return NUMBER;
+    
 END p#fcr;
 /
 
@@ -1675,6 +1679,20 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
       VALUES (a#room_id, pn);
       COMMIT;
     END;
+
+  function add#rooms_part(a#room_id NUMBER) return NUMBER
+    IS
+      pn NUMBER;
+    BEGIN
+      pn := get#room_pn(a#room_id);
+      INSERT INTO t#rooms_part (
+        c#rooms_id, c#rooms_pn
+      )
+      VALUES (a#room_id, pn);
+      COMMIT;
+      return pn;
+    END;
+
 
   PROCEDURE del#rooms_part(a#rooms_id NUMBER,
                            a#rooms_pn NUMBER)
