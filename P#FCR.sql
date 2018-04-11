@@ -1689,7 +1689,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
         c#rooms_id, c#rooms_pn
       )
       VALUES (a#room_id, pn);
-      COMMIT;
       return pn;
     END;
 
