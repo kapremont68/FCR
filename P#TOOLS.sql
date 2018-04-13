@@ -69,6 +69,9 @@ CREATE OR REPLACE PACKAGE P#TOOLS
 
 
     PROCEDURE FILL_CHARGE_PAY_J_TABLES(p_PERSON_ID INTEGER);
+    
+    
+    FUNCTION GET_HOUSE_BALANCE_2043(p_house_id number) return number;
 
 END P#TOOLS;
 /
@@ -882,6 +885,18 @@ COMMIT;
         select acc_type into res from V4_BANK_VD where house_id = a#house_id;
         RETURN res;
     END ACC_TYPE_BY_HOUSE_ID;
+
+    FUNCTION GET_HOUSE_BALANCE_2043(p_house_id number) return number AS
+        curMN NUMBER;
+        totalPay NUMBER;
+        mnPay NUMBER;
+        res NUMBER;
+    BEGIN
+        select P#UTILS.GET#OPEN_MN() into curMN from dual;
+        select CHARGE_SUM_MN, PAY_SUM_TOTAL into mnPay, totalPay from T#TOTAL_HOUSE where MN = curMN and HOUSE_ID = p_house_id;
+        res := totalPay+(516-curMN)*mnPay;
+        RETURN res;
+    END GET_HOUSE_BALANCE_2043;
 
 END P#TOOLS;
 /
