@@ -1,6 +1,5 @@
 CREATE OR REPLACE PACKAGE P3UTILS AS 
 
-
 -- строка с перечнем всех работ по дому 
   FUNCTION get_jobs_txt(p_HOUSE_ID NUMBER DEFAULT NULL, p_DATE_BEG DATE, p_DATE_END DATE) RETURN NVARCHAR2;
 
@@ -15,6 +14,9 @@ CREATE OR REPLACE PACKAGE P3UTILS AS
 
 -- начислено, оплачено, потрачено, долг, остаток по дому по месяцам
   FUNCTION LST#HOUSE_BALANCE(p_HOUSE_ID NUMBER) RETURN sys_refcursor;
+
+-- платежи в разрезе по домам за работы, проведенные (или по договорам, заключенным) в заданном диапазоне дат
+  FUNCTION LST#HOUSES_PAYS(p_DATE_BEG DATE, p_DATE_END DATE) RETURN sys_refcursor;
   
 -- разносит имортированные из 1С платежи
   PROCEDURE DO#IMPORT;
@@ -52,8 +54,20 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
     res sys_refcursor;
   BEGIN
     OPEN res FOR
+        with
+        tran as (
+            SELECT
+                C#HOUSE_ID HOUSE_ID,
+                sum(c#sum) TRANSFER_SUM_TOTAL
+            FROM
+                T4_TRANSFER P
+            where
+                C#HOUSE_ID = p_HOUSE_ID
+            group by 
+                C#HOUSE_ID
+        )
         select
-            HOUSE_ID ,
+            V.HOUSE_ID ,
             MN ,
             PERIOD ,
             CHARGE_SUM_TOTAL ,
@@ -63,11 +77,14 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
             JOB_SUM_TOTAL ,
             OWNERS_JOB_SUM_TOTAL ,
             GOS_JOB_SUM_TOTAL ,
-            BALANCE_SUM_TOTAL 
+            BALANCE_SUM_TOTAL,
+            TRANSFER_SUM_TOTAL,
+            P#TOOLS.GET_HOUSE_BALANCE_2043(p_HOUSE_ID) BALANCE_2043
         from
-            V3_HOUSE_BALANCE
+            V3_HOUSE_BALANCE V
+            left join tran on (V.HOUSE_ID = tran.HOUSE_ID)
         where
-            HOUSE_ID = p_HOUSE_ID
+            V.HOUSE_ID = p_HOUSE_ID
             and MN = (select max(MN) from V3_HOUSE_BALANCE where HOUSE_ID = p_HOUSE_ID)
         ;
     RETURN res;
@@ -154,6 +171,7 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
             DOGOVOR_NU
         )
         ;
+        commit;
   
          insert into T3_CONTRACTORS (C#INN, C#NAME)
          select distinct
@@ -161,10 +179,11 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
            PLAT
          from
            T3_PAY_IMPORT I
-           join T3_CONTRACTORS C on (I.INN = C.C#INN and I.PLAT = C.C#NAME)
+           left join T3_CONTRACTORS C on (I.INN = C.C#INN)
          WHERE
            C.C#ID is null
          ;
+        commit;
         
          insert into T3_CONTRACTS (C#DATE, C#NUM, C#CONTRACT_TYPE_ID, C#CONTRACTOR_ID, C#DESCRIPTION)
          select distinct
@@ -175,11 +194,12 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
            a_NOTE
          from
            T3_PAY_IMPORT I
-           join T3_CONTRACTORS C on (I.INN = C.C#INN and I.PLAT = C.C#NAME)
+           join T3_CONTRACTORS C on (I.INN = C.C#INN)
            left join T3_CONTRACTS D on (D.C#CONTRACTOR_ID = C.C#ID and D.C#NUM = I.DOGOVOR_NU and D.C#DATE = I.DOGOVOR_DA)
          WHERE
            D.C#ID is null
          ;
+        commit;
         
          insert into T3_JOBS (C#JOB_TYPE_ID, C#CONTRACT_ID, C#HOUSE_ID, C#NOTE)
          select distinct
@@ -189,12 +209,13 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
            a_NOTE
          from
            T3_PAY_IMPORT I
-           join T3_CONTRACTORS C on (I.INN = C.C#INN and I.PLAT = C.C#NAME)
+           join T3_CONTRACTORS C on (I.INN = C.C#INN)
            join T3_CONTRACTS D on (D.C#CONTRACTOR_ID = C.C#ID and D.C#NUM = I.DOGOVOR_NU and D.C#DATE = I.DOGOVOR_DA)
            left join T3_JOBS J on (J.C#JOB_TYPE_ID = I.TIP_WORK and J.C#CONTRACT_ID = D.C#ID and J.C#HOUSE_ID = I.ID_HOUSE)
          WHERE
            J.C#ID is null
          ;
+        commit;
         
          insert into T3_PAY (
            C#PAY_TYPE_ID,
@@ -215,15 +236,79 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
           I.PRIM||' ('||a_NOTE||')'
         from
           T3_PAY_IMPORT I
-          join T3_CONTRACTORS C on (I.INN = C.C#INN and I.PLAT = C.C#NAME)
+          join T3_CONTRACTORS C on (I.INN = C.C#INN)
           join T3_CONTRACTS D on (D.C#CONTRACTOR_ID = C.C#ID and D.C#NUM = I.DOGOVOR_NU and D.C#DATE = I.DOGOVOR_DA)
           join T3_JOBS J on (J.C#JOB_TYPE_ID = I.TIP_WORK and J.C#CONTRACT_ID = D.C#ID and J.C#HOUSE_ID = I.ID_HOUSE)
           left join T3_PAY P on (P.C#SUM = I.SUMM_PL and P.C#INVOICE = I.PD_NUM and P.C#PAY_DATE = I.DATA_PL)
         WHERE
           P.C#ID is null
         ;
+        commit;
         
     END DO#IMPORT;
+
+  FUNCTION LST#HOUSES_PAYS(p_DATE_BEG DATE, p_DATE_END DATE) RETURN sys_refcursor AS
+    res sys_refcursor;
+  BEGIN
+    OPEN res FOR
+        with
+            pays as (
+                SELECT
+                    HOUSE_ID,
+                    SUM(CASE WHEN PAY_SOURCE = 'OWNERS' THEN PAY_SUM ELSE 0 END) OWNERS_PAY_SUM,
+                    SUM(CASE WHEN PAY_SOURCE = 'GOS' THEN PAY_SUM ELSE 0 END) GOS_PAY_SUM,
+                    SUM(PAY_SUM) TOTAL_PAY_SUM
+                FROM
+                    V3_PAY V
+                WHERE
+--                    (((JOB_DATE_BEGIN is not null and JOB_DATE_END is not null)
+--                        and ((p_DATE_BEG BETWEEN JOB_DATE_BEGIN and JOB_DATE_END)
+--                                or (p_DATE_END BETWEEN JOB_DATE_BEGIN and JOB_DATE_END)))
+--                    or  CONTRACT_DATE BETWEEN p_DATE_BEG AND p_DATE_END)
+                    NVL(JOB_DATE_BEGIN,CONTRACT_DATE) BETWEEN p_DATE_BEG AND p_DATE_END
+                    and CONTRACT_TYPE_NAME <> 'Зачеты'
+                    and PAY_TYPE_NAME <> 'Зачеты'
+                GROUP BY
+                    HOUSE_ID
+            )
+            ,sel1 as (
+                select
+                    P.HOUSE_ID,
+                    ADDR,
+                    OWNERS_PAY_SUM,
+                    GOS_PAY_SUM,
+                    TOTAL_PAY_SUM,
+                    ACC_TYPE,
+                    regexp_substr(ADDR, '[^ ]+', 1) RN
+                from
+                    pays P
+                    left join FCR.MV_HOUSES_ADRESES A on (A.HOUSE_ID = P.HOUSE_ID)
+                    left join FCR.V#HOUSE_ACC_TYPE T on (A.HOUSE_ID = T.HOUSE_ID)
+                order by
+                    ADDR
+            )
+            ,totals as (
+                select
+                    RN,
+                    SUM(OWNERS_PAY_SUM) RN_OWNERS_PAY_SUM,
+                    SUM(GOS_PAY_SUM) RN_GOS_PAY_SUM,
+                    SUM(TOTAL_PAY_SUM) RN_TOTAL_PAY_SUM
+                from
+                    sel1
+                group by
+                    RN
+            )
+            SELECT
+                sel1.*,
+                RN_OWNERS_PAY_SUM,
+                RN_GOS_PAY_SUM,
+                RN_TOTAL_PAY_SUM
+            from
+                sel1
+                join totals on (sel1.RN = totals.RN)
+            ;
+    RETURN res;
+  END LST#HOUSES_PAYS;
 
 END p3utils;
 /
