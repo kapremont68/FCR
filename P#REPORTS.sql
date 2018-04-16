@@ -345,23 +345,27 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
     BEGIN
 --      m_beg := fcr.p#mn_utils.get#mn(a#date_begin);
 --      m_end := fcr.p#mn_utils.get#mn(a#date_end);
+
+
       OPEN ret FOR
             with
                 beg_per as (
                     select 
-                        MV_ACCOUNT_BALANCE.*
+                        A.*
+                        ,H.ADDR
                         ,DOLG_SUM_TOTAL-DOLG_SUM_MN DOLG_BEG
                     from
-                        MV_ACCOUNT_BALANCE
+                        T#TOTAL_ACCOUNT A
+                        JOIN MV_HOUSES_ADRESES H on (A.HOUSE_ID = H.HOUSE_ID)
                     where
                         MN = P#MN_UTILS.GET#MN(a#date_begin)
                 )
                 ,end_per as (
                     select 
-                        MV_ACCOUNT_BALANCE.*
+                        T#TOTAL_ACCOUNT.*
                         ,DOLG_SUM_TOTAL DOLG_END
                     from
-                        MV_ACCOUNT_BALANCE
+                        T#TOTAL_ACCOUNT
                     where
                         MN = P#MN_UTILS.GET#MN(a#date_end)
                 )
@@ -373,7 +377,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                         SUM(BARTER_SUM_MN)   BARTER_SUM,
                         SUM(PENI_SUM_MN)   PENI_SUM        
                     from    
-                        MV_ACCOUNT_BALANCE
+                        T#TOTAL_ACCOUNT
                     where
                         MN BETWEEN P#MN_UTILS.GET#MN(TO_DATE('01.01.'||EXTRACT(YEAR FROM TO_DATE(a#date_begin)),'dd.mm.yyyy')) AND P#MN_UTILS.GET#MN(a#date_end)
                     group by
@@ -414,9 +418,6 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             order by 
                 ADDR, LPAD(FLAT_NUM,10,'0')
             ;   
-                
-
-
       RETURN ret;
     END;
   /**
