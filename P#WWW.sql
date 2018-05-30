@@ -1,139 +1,209 @@
-CREATE OR REPLACE PACKAGE P#WWW AS 
+CREATE OR REPLACE PACKAGE p#www AS
+    FUNCTION get#acc_id_by_any_acc_num (
+        p_acc_num VARCHAR2
+    ) RETURN NUMBER;
 
-    function get#acc_id_by_any_acc_num(p_ACC_NUM VARCHAR2) RETURN NUMBER;
-    
-    function get#acc_balance(p_ACC_NUM VARCHAR2) RETURN sys_refcursor;
+    FUNCTION get#acc_balance (
+        p_acc_num VARCHAR2
+    ) RETURN SYS_REFCURSOR;
 
-END P#WWW;
+    FUNCTION get#info_for_kvit (
+        p_acc_num VARCHAR2,
+        p_period VARCHAR2
+    ) RETURN SYS_REFCURSOR;
+
+END p#www;
 /
 
 
-CREATE OR REPLACE PACKAGE BODY P#WWW AS
+CREATE OR REPLACE PACKAGE BODY p#www AS
 
-    function get#acc_id_by_any_acc_num(p_ACC_NUM VARCHAR2) RETURN NUMBER AS
-        ret_ACC_ID NUMBER;
+    FUNCTION get#acc_id_by_any_acc_num (
+        p_acc_num VARCHAR2
+    ) RETURN NUMBER AS
+        ret_acc_id   NUMBER;
     BEGIN
-        select 
+        SELECT
             c#account_id
-        into 
-            ret_ACC_ID
-        from
-            T#ACCOUNT_OP
+        INTO
+            ret_acc_id
+        FROM
+            t#account_op
         WHERE
-            C#OUT_NUM = p_ACC_NUM
-        ;    
-        RETURN ret_ACC_ID;
-        EXCEPTION
-            when NO_DATA_FOUND then 
-            begin
-                select 
+            c#out_num = p_acc_num;
+
+        RETURN ret_acc_id;
+    EXCEPTION
+        WHEN no_data_found THEN
+            BEGIN
+                SELECT
                     c#id
-                into 
-                    ret_ACC_ID
-                from
-                    T#ACCOUNT
+                INTO
+                    ret_acc_id
+                FROM
+                    t#account
                 WHERE
-                    C#NUM = p_ACC_NUM;
-                RETURN ret_ACC_ID;
-            end;
-        RETURN ret_ACC_ID;
+                    c#num = p_acc_num;
+
+                RETURN ret_acc_id;
+            END;
+            RETURN ret_acc_id;
     END get#acc_id_by_any_acc_num;
 
-    function get#acc_balance(p_ACC_NUM VARCHAR2) RETURN sys_refcursor AS
-        res sys_refcursor;
-        a_ACC_ID number;
+    FUNCTION get#acc_balance (
+        p_acc_num VARCHAR2
+    ) RETURN SYS_REFCURSOR AS
+        res        SYS_REFCURSOR;
+        a_acc_id   NUMBER;
     BEGIN
-        select P#WWW.GET#ACC_ID_BY_ANY_ACC_NUM(p_ACC_NUM) into a_ACC_ID from dual;
-        OPEN res FOR
-            with
-                ch as (
-                    select
-                        ROWIDTOCHAR(ROWID) N,
-                        1 NN,
-                        C#ACCOUNT_ID ACCOUNT_ID,
-                        C#A_MN MN,
-                        P#UTILS.GET#TARIF(C#ACCOUNT_ID,P#MN_UTILS.GET#DATE(C#A_MN)) TARIF,
-                        C#VOL VOL,
-                        C#SUM CHARGE_SUM
-                    from
-                        T#CHARGE
-                )
-                ,pay as (
-                    SELECT
-                        ROWIDTOCHAR(P.ROWID) N,
-                        2 NN,
-                        coalesce(C#ACC_ID,C#ACC_ID_CLOSE,C#ACC_ID_TTER) ACCOUNT_ID,
-                        P#MN_UTILS.GET#MN(C#REAL_DATE) MN,
-                        C#REAL_DATE REAL_DATE,
-                        C#PERIOD PAY_PERIOD,
-                        C#COD_RKC RKC_CODE,
-                        R.C#NAME RKC_NAME,
-                        C#ACCOUNT ACCOUNT_NUM,
-                        C#SUMMA PAY_SUM,
-                        C#COMMENT PAY_COMMENT,
-                        C#PLAT PAYER
-                    from
-                        T#PAY_SOURCE P
-                        left join T#OUT_PROC R on (TO_NUMBER(P.C#COD_RKC) = TO_NUMBER(R.C#CODE))
-                    where
-                        C#OPS_ID is not null
-                )
-                ,alls as (
-                    select
-                        N,
-                        NN,
-                        ACCOUNT_ID,
-                        MN,
-                        TO_CHAR(P#MN_UTILS.GET#DATE(MN),'mm.yyyy') MN_PER,
-                        TARIF,
-                        VOL,
-                        null REAL_DATE,
-                        null REAL_DATE_STR,
-                        null PAY_PERIOD,
-                        null RKC_NAME,
-                        null ACCOUNT_NUM,
-                        null PAY_COMMENT,
-                        null PAYER,
-                        CHARGE_SUM,
-                        null PAY_SUM
-                    from
-                        ch
-                    union all
-                    select
-                        N,
-                        NN,
-                        ACCOUNT_ID,
-                        MN,
-                        null MN_PER,
-                        null TARIF,
-                        null VOL,
-                        REAL_DATE,
-                        TO_CHAR(REAL_DATE,'dd.mm.yyyy') REAL_DATE_STR,
-                        PAY_PERIOD,
-                        RKC_NAME,
-                        ACCOUNT_NUM,
-                        PAY_COMMENT,
-                        PAYER,
-                        null CHARGE_SUM,
-                        PAY_SUM
-                    from
-                        pay
-            
-                )
-            select
-                alls.*,
-                sum(CHARGE_SUM)  over (order by MN, NN, N) CHARGE_TOTAL,
-                sum(PAY_SUM)  over (order by MN, NN, N) PAY_TOTAL,
-                sum(NVL(PAY_SUM,0) - NVL(CHARGE_SUM,0)) over (order by MN, NN, N) BALANCE
-            from
-                alls
-            where
-                ACCOUNT_ID = a_ACC_ID
-            order by
-                MN, NN, REAL_DATE
-            ;
+        SELECT
+            p#www.get#acc_id_by_any_acc_num(p_acc_num)
+        INTO
+            a_acc_id
+        FROM
+            dual;
+
+        OPEN res FOR WITH ch AS (
+            SELECT
+                rowidtochar(ROWID) n,
+                1 nn,
+                c#account_id account_id,
+                c#a_mn mn,
+                p#utils.get#tarif(c#account_id,p#mn_utils.get#date(c#a_mn) ) tarif,
+                c#vol vol,
+                c#sum charge_sum
+            FROM
+                t#charge
+        ),pay AS (
+            SELECT
+                rowidtochar(p.rowid) n,
+                2 nn,
+                coalesce(c#acc_id,c#acc_id_close,c#acc_id_tter) account_id,
+                p#mn_utils.get#mn(c#real_date) mn,
+                c#real_date real_date,
+                c#period pay_period,
+                c#cod_rkc rkc_code,
+                r.c#name rkc_name,
+                c#account account_num,
+                c#summa pay_sum,
+                c#comment pay_comment,
+                c#plat payer
+            FROM
+                t#pay_source p
+                LEFT JOIN t#out_proc r ON ( to_number(p.c#cod_rkc) = to_number(r.c#code) )
+            WHERE
+                c#ops_id IS NOT NULL
+        ),alls AS (
+            SELECT
+                n,
+                nn,
+                account_id,
+                mn,
+                TO_CHAR(p#mn_utils.get#date(mn),'mm.yyyy') mn_per,
+                tarif,
+                vol,
+                NULL real_date,
+                NULL real_date_str,
+                NULL pay_period,
+                NULL rkc_name,
+                NULL account_num,
+                NULL pay_comment,
+                NULL payer,
+                charge_sum,
+                NULL pay_sum
+            FROM
+                ch
+            UNION ALL
+            SELECT
+                n,
+                nn,
+                account_id,
+                mn,
+                NULL mn_per,
+                NULL tarif,
+                NULL vol,
+                real_date,
+                TO_CHAR(real_date,'dd.mm.yyyy') real_date_str,
+                pay_period,
+                rkc_name,
+                account_num,
+                pay_comment,
+                payer,
+                NULL charge_sum,
+                pay_sum
+            FROM
+                pay
+        ) SELECT
+            alls.*,
+            SUM(charge_sum) OVER(
+            ORDER BY
+                mn,
+                nn,
+                n
+            ) charge_total,
+            SUM(pay_sum) OVER(
+            ORDER BY
+                mn,
+                nn,
+                n
+            ) pay_total,
+            SUM(nvl(pay_sum,0) - nvl(charge_sum,0) ) OVER(
+            ORDER BY
+                mn,
+                nn,
+                n
+            ) balance
+          FROM
+            alls
+          WHERE
+            account_id = a_acc_id
+        ORDER BY
+            mn,
+            nn,
+            real_date;
+
         RETURN res;
     END get#acc_balance;
 
-END P#WWW;
+    FUNCTION get#info_for_kvit (
+        p_acc_num VARCHAR2,
+        p_period VARCHAR2
+    ) RETURN SYS_REFCURSOR AS
+        res   SYS_REFCURSOR;
+    BEGIN
+        OPEN res FOR SELECT
+            p_acc_num acc_num,
+            ha.addr
+            ||
+                CASE
+                    WHEN r.c#valid_tag = 'Y' THEN ', кв. '
+                    ELSE ', пом. '
+                END
+            || t.flat_num addr,
+            r.c#area_val area_val,
+            p#tools.get_person_name_by_id(l.c#person_id) person_name,
+            p#utils.get#tarif(t.account_id,TO_DATE(p_period,'mm.yyyy') ) tarif,
+            p#tools.period_in_words(t.period) period,
+            charge_sum_mn charge_sum_mn,
+            charge_sum_total - charge_sum_mn charge_sum_total,
+            pay_sum_total - pay_sum_mn pay_sum_total,
+            dolg_sum_total + pay_sum_mn - charge_sum_mn dolg_sum_total
+                     FROM
+            t#total_account t
+            JOIN mv_houses_adreses ha ON ( t.house_id = ha.house_id )
+            JOIN v#rooms r ON ( t.rooms_id = r.c#rooms_id )
+            JOIN v#acc_last2 l ON ( t.account_id = l.c#account_id )
+                     WHERE
+            account_id = (
+                SELECT
+                    p#www.get#acc_id_by_any_acc_num(p_acc_num)
+                FROM
+                    dual
+            )
+            AND   t.period = p_period;
+
+        RETURN res;
+    END get#info_for_kvit;
+
+END p#www;
 /

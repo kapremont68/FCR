@@ -1,902 +1,1188 @@
-CREATE OR REPLACE PACKAGE P#TOOLS
-  AS
-  
-  PROCEDURE FILL_ACCOUNTS_ADRESES;
+CREATE OR REPLACE PACKAGE p#tools AS
+    PROCEDURE fill_accounts_adreses;
 
-  FUNCTION GET_ACCOUNT_BY_ADRES(P_ADRES IN VARCHAR2)
-    RETURN SYS_REFCURSOR;
+    FUNCTION get_account_by_adres (
+        p_adres IN VARCHAR2
+    ) RETURN SYS_REFCURSOR;
 
-  FUNCTION GET_PERSON_NAME_BY_ID(P_PERSON_ID IN NUMBER) RETURN VARCHAR2;
+    FUNCTION get_person_name_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2;
 
-  FUNCTION GET_PERSON_SNAME_BY_ID(P_PERSON_ID IN NUMBER) RETURN VARCHAR2;
+    FUNCTION get_person_sname_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2;
 
-  FUNCTION GET_PERSON_1NAME_BY_ID(P_PERSON_ID IN NUMBER) RETURN VARCHAR2;
+    FUNCTION get_person_1name_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2;
 
-  FUNCTION GET_PERSON_2NAME_BY_ID(P_PERSON_ID IN NUMBER) RETURN VARCHAR2;
+    FUNCTION get_person_2name_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2;
 
-  FUNCTION GET_PERSON_TIP_BY_ID(P_PERSON_ID IN NUMBER) RETURN VARCHAR2;
+    FUNCTION get_person_tip_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2;
 
-  PROCEDURE ADD_NEW_ERC_ACCOUNTS;
+    PROCEDURE add_new_erc_accounts;
 
-  PROCEDURE ADD_NEW_ERC_ACCOUNTS_BY_ID;
+    PROCEDURE add_new_erc_accounts_by_id;
 
 
 -- добавл€ем внешний счет (равный внутреннему от той же даты) дл€ аккаунтов у которых их нет
-  PROCEDURE ADD_NEW_FCR_ACCOUNTS;
+
+    PROCEDURE add_new_fcr_accounts;
   
 -- возвращает площадь помещени€ по номеру счета на дату  
-  FUNCTION get#acc_area(a#acc_id NUMBER, a#date DATE DEFAULT sysdate) RETURN NUMBER;
+
+    FUNCTION get#acc_area (
+        a#acc_id   NUMBER,
+        a#date     DATE DEFAULT SYSDATE
+    ) RETURN NUMBER;
 
 -- возвращает адрес по account_id  
-  FUNCTION get#acc_addr(a#acc_id NUMBER) RETURN VARCHAR2;
+
+    FUNCTION get#acc_addr (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2;
 
   
 -- возвращает максимальную свободную дату дл€ добавлени€ – ÷ дл€ заданного счета
-  FUNCTION GET_NEW_RKC_DATE(p_ACC_ID NUMBER, p_DATE DATE) return DATE;
+
+    FUNCTION get_new_rkc_date (
+        p_acc_id NUMBER,
+        p_date DATE
+    ) RETURN DATE;
 
 -- возвращает MN закрыти€ счета или 1000 если открыт
-  FUNCTION get#end_account_mn(a#acc_id NUMBER) RETURN NUMBER;
+
+    FUNCTION get#end_account_mn (
+        a#acc_id NUMBER
+    ) RETURN NUMBER;
 
 -- возвращает дл€ задонного acc_id количество записей из T#PAY_SOURCE с кодом – ÷ 88
-  FUNCTION get#count_88(a#acc_id NUMBER) RETURN NUMBER;
+
+    FUNCTION get#count_88 (
+        a#acc_id NUMBER
+    ) RETURN NUMBER;
 
 -- возвращает account_id дл€ номера счета
-  FUNCTION get#acc_id#by#acc_num(a#acc_num VARCHAR2) RETURN NUMBER;
+
+    FUNCTION get#acc_id#by#acc_num (
+        a#acc_num VARCHAR2
+    ) RETURN NUMBER;
 
 -- возвращает внутренний номер счета по account_id
-  FUNCTION get#acc_num#by#acc_id(a#acc_id NUMBER) RETURN VARCHAR2;
+
+    FUNCTION get#acc_num#by#acc_id (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2;
 
 -- перенос всех платежей со счета на счет (в параметрах указывать внутренние счета)  
-  PROCEDURE transfer#all_pays(from_acc_num VARCHAR2, to_acc_num VARCHAR2);    
+
+    PROCEDURE transfer#all_pays (
+        from_acc_num VARCHAR2,
+        to_acc_num VARCHAR2
+    );    
 
 -- добавл€ет и делает текущей площадь дл€ помещени€
-  PROCEDURE set_rooms_area(p_ROOMS_ID NUMBER, p_NEW_AREA NUMBER);
+
+    PROCEDURE set_rooms_area (
+        p_rooms_id NUMBER,
+        p_new_area NUMBER
+    );
 
 
 -- открыт дом с заданным ACCOUNT_ID или нет
-  FUNCTION house_is_open(a#acc_id NUMBER) RETURN VARCHAR2;
+
+    FUNCTION house_is_open (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2;
 
 -- закрыт ли счет в день открыти€
-  FUNCTION account_is_open_error(a#acc_id NUMBER) RETURN VARCHAR2;
+
+    FUNCTION account_is_open_error (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2;
 
 
 -- тип баковского счета (котел, спец) по id дома
-  FUNCTION ACC_TYPE_BY_HOUSE_ID(a#house_id NUMBER) RETURN VARCHAR2;
+
+    FUNCTION acc_type_by_house_id (
+        a#house_id NUMBER
+    ) RETURN VARCHAR2;
+
+    FUNCTION period_in_words (
+        p_period VARCHAR2
+    ) RETURN VARCHAR2;
 
 
 -- удал€ет дл€ указанного счета все записи из T#MASS_PAY, T#OP, T#OP_VD
-    PROCEDURE DEL#MASS_PAY_FOR_ACC(a#acc_id NUMBER);    
 
+    PROCEDURE del#mass_pay_for_acc (
+        a#acc_id NUMBER
+    );
 
-    PROCEDURE FILL_CHARGE_PAY_J_TABLES(p_PERSON_ID INTEGER);
-    
-    
-    FUNCTION GET_HOUSE_BALANCE_2043(p_house_id number) return number;
+    PROCEDURE fill_charge_pay_j_tables (
+        p_person_id INTEGER
+    );
 
-END P#TOOLS;
+    FUNCTION get_house_balance_2043 (
+        p_house_id NUMBER
+    ) RETURN NUMBER;
+
+END p#tools;
 /
 
 
-CREATE OR REPLACE PACKAGE BODY P#TOOLS
-  AS
+CREATE OR REPLACE PACKAGE BODY p#tools AS
 
-  PROCEDURE FILL_ACCOUNTS_ADRESES
-    AS
-
+    PROCEDURE fill_accounts_adreses
+        AS
     BEGIN
-      DELETE FROM FCR.TT#ACCOUNTS_ADRESES;
-      INSERT INTO FCR.TT#ACCOUNTS_ADRESES
-        SELECT C#ROOMS_ID,
-               C#NUM,
-               v#ACCOUNT.C#DATE,
-               C#END_DATE,
-               fcr.p#utils.get#rooms_addr(C#ROOMS_ID),
-               C#OUT_NUM
-          FROM v#account,
-               T#ACCOUNT_OP
-          WHERE v#ACCOUNT.C#ID = T#ACCOUNT_OP.C#ACCOUNT_ID (+);
-      COMMIT;
-    END FILL_ACCOUNTS_ADRESES;
+        DELETE FROM fcr.tt#accounts_adreses;
 
-  FUNCTION GET_ACCOUNT_BY_ADRES(P_ADRES IN VARCHAR2)
-    RETURN SYS_REFCURSOR
-    AS
-      cur SYS_REFCURSOR;
-    BEGIN
-      OPEN cur FOR
-      SELECT *
-        FROM TT#ACCOUNTS_ADRESES
-        WHERE ADRES LIKE P_ADRES;
-      RETURN cur;
-    END GET_ACCOUNT_BY_ADRES;
+        INSERT INTO fcr.tt#accounts_adreses
+            SELECT
+                c#rooms_id,
+                c#num,
+                v#account.c#date,
+                c#end_date,
+                fcr.p#utils.get#rooms_addr(c#rooms_id),
+                c#out_num
+            FROM
+                v#account,
+                t#account_op
+            WHERE
+                v#account.c#id = t#account_op.c#account_id (+);
 
-  FUNCTION GET_PERSON_NAME_BY_ID(P_PERSON_ID IN NUMBER)
-    RETURN VARCHAR2
-    AS
-      OUT_PERSON_NAME VARCHAR2(100);
+        COMMIT;
+    END fill_accounts_adreses;
+
+    FUNCTION get_account_by_adres (
+        p_adres IN VARCHAR2
+    ) RETURN SYS_REFCURSOR AS
+        cur   SYS_REFCURSOR;
     BEGIN
-      WITH TMP#PERSON AS (SELECT TRIM(C#NAME) || ' (»ЌЌ: ' || TRIM(C#INN_NUM) || ')' PERSON_NAME
-            FROM T#PERSON_J
-            WHERE C#PERSON_ID = P_PERSON_ID
+        OPEN cur FOR SELECT
+            *
+                     FROM
+            tt#accounts_adreses
+                     WHERE
+            adres LIKE p_adres;
+
+        RETURN cur;
+    END get_account_by_adres;
+
+    FUNCTION get_person_name_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2 AS
+        out_person_name   VARCHAR2(100);
+    BEGIN
+        WITH tmp#person AS (
+            SELECT
+                TRIM(c#name)
+                || ' (»ЌЌ: '
+                || TRIM(c#inn_num)
+                || ')' person_name
+            FROM
+                t#person_j
+            WHERE
+                c#person_id = p_person_id
             UNION
-          SELECT TRIM(C#F_NAME) || ' ' || TRIM(C#I_NAME) || ' ' || TRIM(C#O_NAME) PERSON_NAME
-            FROM T#PERSON_P
-            WHERE C#PERSON_ID = P_PERSON_ID)
-      SELECT PERSON_NAME
-        INTO OUT_PERSON_NAME
-        FROM TMP#PERSON;
-      RETURN OUT_PERSON_NAME;
+            SELECT
+                TRIM(c#f_name)
+                || ' '
+                || TRIM(c#i_name)
+                || ' '
+                || TRIM(c#o_name) person_name
+            FROM
+                t#person_p
+            WHERE
+                c#person_id = p_person_id
+        ) SELECT
+            person_name
+        INTO
+            out_person_name
+          FROM
+            tmp#person;
+
+        RETURN out_person_name;
     EXCEPTION
-      WHEN OTHERS THEN RETURN NULL;
-    END GET_PERSON_NAME_BY_ID;
+        WHEN OTHERS THEN
+            RETURN NULL;
+    END get_person_name_by_id;
 
-
-  FUNCTION GET_PERSON_TIP_BY_ID(P_PERSON_ID IN NUMBER)
-    RETURN VARCHAR2
-    AS
-      OUT_PERSON_TIP VARCHAR2(100);
+    FUNCTION get_person_tip_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2 AS
+        out_person_tip   VARCHAR2(100);
     BEGIN
-      WITH TMP#PERSON AS (SELECT C#TIP_UL PERSON_TIP
-            FROM T#PERSON_J
-            WHERE C#PERSON_ID = P_PERSON_ID
+        WITH tmp#person AS (
+            SELECT
+                c#tip_ul person_tip
+            FROM
+                t#person_j
+            WHERE
+                c#person_id = p_person_id
             UNION
-          SELECT 'PER' PERSON_TIP
-            FROM T#PERSON_P
-            WHERE C#PERSON_ID = P_PERSON_ID)
-      SELECT PERSON_TIP
-        INTO OUT_PERSON_TIP
-        FROM TMP#PERSON;
-      RETURN OUT_PERSON_TIP;
+            SELECT
+                'PER' person_tip
+            FROM
+                t#person_p
+            WHERE
+                c#person_id = p_person_id
+        ) SELECT
+            person_tip
+        INTO
+            out_person_tip
+          FROM
+            tmp#person;
+
+        RETURN out_person_tip;
     EXCEPTION
-      WHEN OTHERS THEN RETURN NULL;
-    END GET_PERSON_TIP_BY_ID;
+        WHEN OTHERS THEN
+            RETURN NULL;
+    END get_person_tip_by_id;
 
-
-
-  FUNCTION GET_PERSON_SNAME_BY_ID(P_PERSON_ID IN NUMBER)
-    RETURN VARCHAR2
-    AS
-      OUT_PERSON_NAME VARCHAR2(100);
+    FUNCTION get_person_sname_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2 AS
+        out_person_name   VARCHAR2(100);
     BEGIN
-      WITH TMP#PERSON AS (SELECT C#NAME || ' (»ЌЌ: ' || C#INN_NUM || ')' PERSON_NAME
-            FROM T#PERSON_J
-            WHERE C#PERSON_ID = P_PERSON_ID
+        WITH tmp#person AS (
+            SELECT
+                c#name
+                || ' (»ЌЌ: '
+                || c#inn_num
+                || ')' person_name
+            FROM
+                t#person_j
+            WHERE
+                c#person_id = p_person_id
             UNION
-          SELECT C#F_NAME PERSON_NAME
-            FROM T#PERSON_P
-            WHERE C#PERSON_ID = P_PERSON_ID)
-      SELECT PERSON_NAME
-        INTO OUT_PERSON_NAME
-        FROM TMP#PERSON;
-      RETURN NVL(OUT_PERSON_NAME, ' ');
-    EXCEPTION
-      WHEN OTHERS THEN RETURN ' ';
-    END GET_PERSON_SNAME_BY_ID;
+            SELECT
+                c#f_name person_name
+            FROM
+                t#person_p
+            WHERE
+                c#person_id = p_person_id
+        ) SELECT
+            person_name
+        INTO
+            out_person_name
+          FROM
+            tmp#person;
 
-  FUNCTION GET_PERSON_1NAME_BY_ID(P_PERSON_ID IN NUMBER)
-    RETURN VARCHAR2
-    AS
-      OUT_PERSON_NAME VARCHAR2(100);
-    BEGIN
-      WITH TMP#PERSON AS (SELECT C#I_NAME PERSON_NAME
-            FROM T#PERSON_P
-            WHERE C#PERSON_ID = P_PERSON_ID)
-      SELECT PERSON_NAME
-        INTO OUT_PERSON_NAME
-        FROM TMP#PERSON;
-      RETURN NVL(OUT_PERSON_NAME, ' ');
+        RETURN nvl(out_person_name,' ');
     EXCEPTION
-      WHEN OTHERS THEN RETURN ' ';
-    END GET_PERSON_1NAME_BY_ID;
+        WHEN OTHERS THEN
+            RETURN ' ';
+    END get_person_sname_by_id;
 
-  FUNCTION GET_PERSON_2NAME_BY_ID(P_PERSON_ID IN NUMBER)
-    RETURN VARCHAR2
-    AS
-      OUT_PERSON_NAME VARCHAR2(100);
+    FUNCTION get_person_1name_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2 AS
+        out_person_name   VARCHAR2(100);
     BEGIN
-      WITH TMP#PERSON AS (SELECT C#O_NAME PERSON_NAME
-            FROM T#PERSON_P
-            WHERE C#PERSON_ID = P_PERSON_ID)
-      SELECT PERSON_NAME
-        INTO OUT_PERSON_NAME
-        FROM TMP#PERSON;
-      RETURN NVL(OUT_PERSON_NAME, ' ');
+        WITH tmp#person AS (
+            SELECT
+                c#i_name person_name
+            FROM
+                t#person_p
+            WHERE
+                c#person_id = p_person_id
+        ) SELECT
+            person_name
+        INTO
+            out_person_name
+          FROM
+            tmp#person;
+
+        RETURN nvl(out_person_name,' ');
     EXCEPTION
-      WHEN OTHERS THEN RETURN ' ';
-    END GET_PERSON_2NAME_BY_ID;
-    
-    
-    FUNCTION GET_NEW_RKC_DATE(p_ACC_ID NUMBER, p_DATE DATE) return DATE as
-        ND DATE;
-        BEG_DATE DATE;
-    begin
-        BEG_DATE := TO_DATE('01.05.2014','dd.mm.yyyy');
-        select
-            max(DD)
-        into ND    
-        from
-            (SELECT
-                    BEG_DATE+level-1 DD
+        WHEN OTHERS THEN
+            RETURN ' ';
+    END get_person_1name_by_id;
+
+    FUNCTION get_person_2name_by_id (
+        p_person_id IN NUMBER
+    ) RETURN VARCHAR2 AS
+        out_person_name   VARCHAR2(100);
+    BEGIN
+        WITH tmp#person AS (
+            SELECT
+                c#o_name person_name
+            FROM
+                t#person_p
+            WHERE
+                c#person_id = p_person_id
+        ) SELECT
+            person_name
+        INTO
+            out_person_name
+          FROM
+            tmp#person;
+
+        RETURN nvl(out_person_name,' ');
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN ' ';
+    END get_person_2name_by_id;
+
+    FUNCTION get_new_rkc_date (
+        p_acc_id NUMBER,
+        p_date DATE
+    ) RETURN DATE AS
+        nd         DATE;
+        beg_date   DATE;
+    BEGIN
+        beg_date := TO_DATE('01.05.2014','dd.mm.yyyy');
+        SELECT
+            MAX(dd)
+        INTO
+            nd
+        FROM
+            (
+                SELECT
+                    beg_date + level - 1 dd
                 FROM
                     dual
                 CONNECT BY
-                    level <= p_DATE-BEG_DATE+1
+                    level <= p_date - beg_date + 1
             )
-        where
-            DD not in (select C#DATE from T#ACCOUNT_OP where T#ACCOUNT_OP.C#ACCOUNT_ID = p_ACC_ID)
-        ;    
-        return ND;
-    end GET_NEW_RKC_DATE;
-    
-
-
-  PROCEDURE ADD_NEW_ERC_ACCOUNTS_BY_ID AS
-  BEGIN
-    FOR new_acc_rec IN (
-            with
-                ups as (
-                    select distinct
-                        REPLACE(REPLACE(REPLACE(REPLACE(CITY, ' –ј—Ќ≈Ќ№ јя, де', ' –ј—Ќ≈Ќ№ јя'),'“јћЅќ¬, город','“јћЅќ¬'),'—троитель, посе','—“–ќ»“≈Ћ№'),'Ѕокино, село','Ѕќ »Ќќ')  CITY
-                        ,UPPER(TRIM(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UL_NAME,'бульвар',''),'мкр.',''),'шоссе',''),'пер.',''),'пр.',''),'ул.',''),'пл.',''),'им.',''))) UL_NAME
-                        ,UPPER(TRIM(DOM))||CASE WHEN TRIM(DOP_NAME) <> '--' THEN '-'|| TRIM(REPLACE(DOP_NAME,'корпус','')) ELSE '' END DOM
-                        ,LPAD(UPPER(TRIM(KV)),15,'0') KV
-                        ,PL_OB
-                        ,NEW_ACCOUNT_NUM
-                        ,PER_BEG
-                    FROM
-                        V#ERC_NEW_ACCOUNTS V
-                )
-                ,erc as (
-                    select
-                        CITY||','||UL_NAME||','||DOM DOM
-                        ,PL_OB
-                        ,KV
-                        ,NEW_ACCOUNT_NUM
-                        ,PER_BEG
-                    from
-                        ups
-                )
-                ,rooms as (
-                    select 
-                        T#ROOMS.C#ID ROOMS_ID
-                        ,T#ACCOUNT.C#ID ACCOUNT_ID            
-                        ,T#ROOMS.C#FLAT_NUM FLAT_NUM
-                        ,T#ROOMS.C#HOUSE_ID HOUSE_ID
-                        ,C#AREA_VAl AREA
-                    from
-                        T#ROOMS
-                        join T#ROOMS_SPEC on (T#ROOMS_SPEC.C#ROOMS_ID = T#ROOMS.C#ID)
-                        join T#ROOMS_SPEC_VD on (T#ROOMS_SPEC_VD.C#ID = T#ROOMS_SPEC.C#ID)
-                        join T#ACCOUNT on (T#ACCOUNT.C#ROOMS_ID = T#ROOMS.C#ID)
-                )
-                ,kvs as (
-                    select
-                        R.HOUSE_ID
-                        ,ADDR2 DOM
-                        ,R.ROOMS_ID
-                        ,LPAD(UPPER(TRIM(R.FLAT_NUM)),15,'0') KV
-                        ,R.AREA    
-                        ,ACCOUNT_ID
-                    from
-                        MV_HOUSES_ADRESES M
-                        join rooms R on (M.HOUSE_ID = R.HOUSE_ID)
-                )
-                ,eq as (
-                    select
-                        *
-                    from
-                        erc
-                        join kvs on (kvs.DOM like '%'||erc.DOM and erc.KV = kvs.KV and kvs.AREA = erc.PL_OB)
-                )
-            select distinct
-                ACCOUNT_ID,
-                TO_DATE(PER_BEG||'01','yyyymmdd') NEW_DATE,
-                NEW_ACCOUNT_NUM
-            from
-                eq
-          )
-    LOOP
-        BEGIN
-            P#FCR.ins#account_op (  
-                A#ACCOUNT_ID => new_acc_rec.ACCOUNT_ID,
-                A#DATE => GET_NEW_RKC_DATE(new_acc_rec.ACCOUNT_ID, new_acc_rec.NEW_DATE),
-                A#OUT_PROC_ID => 1,
-                A#OUT_NUM => new_acc_rec.NEW_ACCOUNT_NUM,
-                A#NOTE => 'ADD_NEW_ERC_ACCOUNTS_BY_ID: '||sysdate); 
-        EXCEPTION
-            WHEN OTHERS THEN NULL;
-        END;        
-    END LOOP;
-   END ADD_NEW_ERC_ACCOUNTS_BY_ID;
-
-
-
-  PROCEDURE ADD_NEW_ERC_ACCOUNTS AS
-  BEGIN
-    FOR new_acc_rec IN (
-        select distinct
-          C#ACCOUNT_ID ACCOUNT_ID,
-          TO_DATE(PER_BEG||'01','yyyymmdd') NEW_DATE,
-          NEW_ACCOUNT_NUM
-        from
-          V#ERC_NEW_ACCOUNTS
-          join T#ACCOUNT_OP  on (OLD_ACCOUNT_NUM = C#OUT_NUM)
-        where
-            C#OUT_NUM in (
-                select
-                    C#OUT_NUM
-                from
-                    T#ACCOUNT_OP
-                GROUP BY
-                    C#OUT_NUM
-                HAVING
-                    count(*) = 1
-            )
-          )
-
-    LOOP
-        BEGIN
-            P#FCR.ins#account_op (  
-                A#ACCOUNT_ID => new_acc_rec.ACCOUNT_ID,
-                A#DATE => GET_NEW_RKC_DATE(new_acc_rec.ACCOUNT_ID, new_acc_rec.NEW_DATE),
-                A#OUT_PROC_ID => 1,
-                A#OUT_NUM => new_acc_rec.NEW_ACCOUNT_NUM,
-                A#NOTE => 'ADD_NEW_ERC_ACCOUNTS: '||sysdate); 
-        EXCEPTION
-            WHEN OTHERS THEN NULL;
-        END;        
-    END LOOP;
-   END ADD_NEW_ERC_ACCOUNTS;
-
-
-
-  PROCEDURE ADD_NEW_FCR_ACCOUNTS AS
-  BEGIN
-    FOR new_acc_rec IN (
-        select distinct
-          A.C#ID ACCOUNT_ID,
-          A.C#DATE NEW_DATE,
-          C#NUM NEW_ACCOUNT_NUM
-        from
-          T#ACCOUNT A
-          left join t#account_op O on (A.C#ID = O.C#ACCOUNT_ID)
         WHERE
-            O.C#ACCOUNT_ID is null
+            dd NOT IN (
+                SELECT
+                    c#date
+                FROM
+                    t#account_op
+                WHERE
+                    t#account_op.c#account_id = p_acc_id
+            );
+
+        RETURN nd;
+    END get_new_rkc_date;
+
+    PROCEDURE add_new_erc_accounts_by_id
+        AS
+    BEGIN
+        FOR new_acc_rec IN (
+            WITH ups AS (
+                SELECT DISTINCT
+                    replace(replace(replace(replace(city,' –ј—Ќ≈Ќ№ јя, де',' –ј—Ќ≈Ќ№ јя'),'“јћЅќ¬, город','“јћЅќ¬'),'—троитель, посе','—“–ќ»“≈Ћ№'),'Ѕокино, село'
+,'Ѕќ »Ќќ') city,
+                    upper(TRIM(replace(replace(replace(replace(replace(replace(replace(replace(ul_name,'бульвар',''),'мкр.',''),'шоссе',''),'пер.',''
+),'пр.',''),'ул.',''),'пл.',''),'им.','') ) ) ul_name,
+                    upper(TRIM(dom) )
+                    ||
+                        CASE
+                            WHEN TRIM(dop_name) <> '--' THEN '-'
+                            || TRIM(replace(dop_name,'корпус','') )
+                            ELSE ''
+                        END
+                    dom,
+                    lpad(upper(TRIM(kv) ),15,'0') kv,
+                    pl_ob,
+                    new_account_num,
+                    per_beg
+                FROM
+                    v#erc_new_accounts v
+            ),erc AS (
+                SELECT
+                    city
+                    || ','
+                    || ul_name
+                    || ','
+                    || dom dom,
+                    pl_ob,
+                    kv,
+                    new_account_num,
+                    per_beg
+                FROM
+                    ups
+            ),rooms AS (
+                SELECT
+                    t#rooms.c#id rooms_id,
+                    t#account.c#id account_id,
+                    t#rooms.c#flat_num flat_num,
+                    t#rooms.c#house_id house_id,
+                    c#area_val area
+                FROM
+                    t#rooms
+                    JOIN t#rooms_spec ON ( t#rooms_spec.c#rooms_id = t#rooms.c#id )
+                    JOIN t#rooms_spec_vd ON ( t#rooms_spec_vd.c#id = t#rooms_spec.c#id )
+                    JOIN t#account ON ( t#account.c#rooms_id = t#rooms.c#id )
+            ),kvs AS (
+                SELECT
+                    r.house_id,
+                    addr2 dom,
+                    r.rooms_id,
+                    lpad(upper(TRIM(r.flat_num) ),15,'0') kv,
+                    r.area,
+                    account_id
+                FROM
+                    mv_houses_adreses m
+                    JOIN rooms r ON ( m.house_id = r.house_id )
+            ),eq AS (
+                SELECT
+                    *
+                FROM
+                    erc
+                    JOIN kvs ON ( kvs.dom LIKE '%'
+                    || erc.dom
+                                  AND erc.kv = kvs.kv
+                                  AND kvs.area = erc.pl_ob )
+            ) SELECT DISTINCT
+                account_id,
+                TO_DATE(per_beg
+                || '01','yyyymmdd') new_date,
+                new_account_num
+              FROM
+                eq
+        ) LOOP
+            BEGIN
+                p#fcr.ins#account_op(a#account_id => new_acc_rec.account_id,a#date => get_new_rkc_date(new_acc_rec.account_id,new_acc_rec.new_date),a#out_proc_id
+=> 1,a#out_num => new_acc_rec.new_account_num,a#note => 'ADD_NEW_ERC_ACCOUNTS_BY_ID: '
+                || SYSDATE);
+
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END;
+        END LOOP;
+    END add_new_erc_accounts_by_id;
+
+    PROCEDURE add_new_erc_accounts
+        AS
+    BEGIN
+        FOR new_acc_rec IN (
+            SELECT DISTINCT
+                c#account_id account_id,
+                TO_DATE(per_beg
+                || '01','yyyymmdd') new_date,
+                new_account_num
+            FROM
+                v#erc_new_accounts
+                JOIN t#account_op ON ( old_account_num = c#out_num )
+            WHERE
+                c#out_num IN (
+                    SELECT
+                        c#out_num
+                    FROM
+                        t#account_op
+                    GROUP BY
+                        c#out_num
+                    HAVING
+                        COUNT(*) = 1
+                )
+        ) LOOP
+            BEGIN
+                p#fcr.ins#account_op(a#account_id => new_acc_rec.account_id,a#date => get_new_rkc_date(new_acc_rec.account_id,new_acc_rec.new_date),a#out_proc_id
+=> 1,a#out_num => new_acc_rec.new_account_num,a#note => 'ADD_NEW_ERC_ACCOUNTS: '
+                || SYSDATE);
+
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END;
+        END LOOP;
+    END add_new_erc_accounts;
+
+    PROCEDURE add_new_fcr_accounts
+        AS
+    BEGIN
+        FOR new_acc_rec IN (
+            SELECT DISTINCT
+                a.c#id account_id,
+                a.c#date new_date,
+                c#num new_account_num
+            FROM
+                t#account a
+                LEFT JOIN t#account_op o ON ( a.c#id = o.c#account_id )
+            WHERE
+                o.c#account_id IS NULL
 --          C#OUT_NUM is null
-    )      
-    LOOP
-        BEGIN
-            P#FCR.ins#account_op (  
-                A#ACCOUNT_ID => new_acc_rec.ACCOUNT_ID,
-                A#DATE => GET_NEW_RKC_DATE(new_acc_rec.ACCOUNT_ID,new_acc_rec.NEW_DATE),
-                A#OUT_PROC_ID => 10,
-                A#OUT_NUM => new_acc_rec.NEW_ACCOUNT_NUM,
-                A#NOTE => 'ADD_NEW_FCR_ACCOUNTS: '||sysdate 
-                ); 
+        ) LOOP
+            BEGIN
+                p#fcr.ins#account_op(a#account_id => new_acc_rec.account_id,a#date => get_new_rkc_date(new_acc_rec.account_id,new_acc_rec.new_date),a#out_proc_id
+=> 10,a#out_num => new_acc_rec.new_account_num,a#note => 'ADD_NEW_FCR_ACCOUNTS: '
+                || SYSDATE); 
 --        EXCEPTION
 --            WHEN OTHERS THEN NULL;
-        END;        
-    END LOOP;
-   END ADD_NEW_FCR_ACCOUNTS;
 
+            END;
+        END LOOP;
+    END add_new_fcr_accounts;
 
-
-
-  FUNCTION get#acc_area(a#acc_id NUMBER, a#date DATE  DEFAULT sysdate) RETURN NUMBER AS
-      res NUMBER;
+    FUNCTION get#acc_area (
+        a#acc_id   NUMBER,
+        a#date     DATE DEFAULT SYSDATE
+    ) RETURN NUMBER AS
+        res   NUMBER;
     BEGIN
-      SELECT SUM(rsvd.c#area_val)
-        INTO res
-        FROM 
-             t#account a,
-             t#rooms r,
-             t#rooms_spec rs,
-             (SELECT *
-                 FROM t#rooms_spec_vd rsvd
-                 WHERE 1 = 1
-                   AND rsvd.c#valid_tag = 'Y'
-                   AND rsvd.c#vn = (SELECT MAX(t.c#vn)
-                       FROM t#rooms_spec_vd t
-                       WHERE t.c#id = rsvd.c#id)) rsvd
-        WHERE 1 = 1
-          AND a.c#id = a#acc_id
-          AND a.c#rooms_id = r.c#id
-          AND rs.c#rooms_id = r.c#id
-          AND rs.c#id = rsvd.c#id
-          AND rs.c#date <= a#date;
-
-      RETURN res;
-    END;
-
-
-  FUNCTION get#acc_addr(a#acc_id NUMBER) RETURN VARCHAR2 AS
-    ret VARCHAR2(500); 
-  BEGIN
-    select P#UTILS.GET#ROOMS_ADDR(C#ROOMS_ID) 
-    into ret
-    from T#ACCOUNT
-    where C#ID = a#acc_id and rownum < 2;
-    RETURN ret;
-  END get#acc_addr;
-
-  FUNCTION get#end_account_mn(a#acc_id NUMBER) RETURN NUMBER AS
-    ret NUMBER;
-  BEGIN
-    select NVL(P#MN_UTILS.GET#MN(L.C#END_DATE),1000)
-    into ret
-    from V#ACC_LAST_END L
-    where L.C#ACCOUNT_ID = a#acc_id;
-    RETURN ret;
-  END get#end_account_mn;
-
-  FUNCTION get#count_88(a#acc_id NUMBER) RETURN NUMBER AS
-    ret NUMBER;
-  BEGIN
-    select 
-        count(*) 
-    into ret    
-    from T#PAY_SOURCE 
-    where C#COD_RKC = '88' and NVL(C#ACC_ID, C#ACC_ID_CLOSE) = a#acc_id;
-    RETURN ret;
-  END get#count_88;
-
-  FUNCTION get#acc_id#by#acc_num(a#acc_num VARCHAR2) RETURN NUMBER AS
-    ret NUMBER;
-  BEGIN
-    select C#ID into ret from V#ACCOUNT where C#NUM = a#acc_num;
-    RETURN ret;
-  END get#acc_id#by#acc_num;
-
-  FUNCTION get#acc_num#by#acc_id(a#acc_id NUMBER) RETURN VARCHAR2 AS
-    ret VARCHAR2(50);
-  BEGIN
-    select C#NUM into ret from V#ACCOUNT where C#ID = a#acc_id;
-    RETURN ret;
-  END get#acc_num#by#acc_id;
-
--- перенос всех платежей со счета на счет (в параметрах указывать внутренние счета)  
-  PROCEDURE transfer#all_pays(from_acc_num VARCHAR2, to_acc_num VARCHAR2) AS
-    cursor PAYS is
-        select
-            P.C#ID PS_ID,
-            P#TOOLS.GET#ACC_ID#BY#ACC_NUM(to_acc_num) TO_ACC_ID,
-            sysdate tr_date,
-            P#UTILS.GET#OPEN_MN() tr_mn
-        from
-            T#PAY_SOURCE P
-            join V#ACCOUNT A on (NVL(C#ACC_ID,C#ACC_ID_CLOSE) = A.C#ID)
-        where
-            A.C#NUM = from_acc_num
-            AND P.c#storno_id IS NULL
-            AND P.c#id NOT IN (SELECT c#storno_id FROM t#pay_source  WHERE c#storno_id IS NOT NULL)
-        ;
-  BEGIN
-    for P in PAYS loop
-        TRANSFER#PAY(P.PS_ID, P.TO_ACC_ID, P.TR_DATE, P.TR_MN);
-    end loop;          
-  END transfer#all_pays;
-
-  PROCEDURE set_rooms_area(p_ROOMS_ID NUMBER, p_NEW_AREA NUMBER) AS
-    A#ID NUMBER;
-    A#VN NUMBER;
-    A#LT VARCHAR2(1);
-    A#OTT VARCHAR2(1);
-  BEGIN
-    SELECT C#ID INTO A#ID FROM T#ROOMS_SPEC where C#ROOMS_ID = p_ROOMS_ID and C#DATE = (SELECT MAX(C#DATE) FROM T#ROOMS_SPEC where C#ROOMS_ID = p_ROOMS_ID);
-    SELECT MAX(C#VN) INTO A#VN FROM T#ROOMS_SPEC_VD WHERE C#ID = A#ID;
-    SELECT
-        C#LIVING_TAG,
-        C#OWN_TYPE_TAG
-    INTO
-        A#LT,
-        A#OTT
-    FROM     
-        T#ROOMS_SPEC_VD
-    WHERE
-        C#ID = A#ID
-        AND C#VN = A#VN
-    ;
-    INSERT INTO T#ROOMS_SPEC_VD (C#ID, C#VN, C#VALID_TAG, C#LIVING_TAG, C#OWN_TYPE_TAG, C#AREA_VAL)
-    VALUES (A#ID, A#VN+1, 'Y', A#LT, A#OTT, p_NEW_AREA);
-    COMMIT;
-  END set_rooms_area;
-
-  FUNCTION house_is_open(a#acc_id NUMBER) RETURN VARCHAR2 AS
-    res VARCHAR2(1);
-  BEGIN
-    select
-        CASE WHEN HI.C#END_DATE is null THEN 'Y' ELSE 'N' END
-    into
-        res
-    from
-        V#ACCOUNT A
-        join V#ROOMS R on (A.C#ROOMS_ID = R.C#ROOMS_ID)
-        join T#HOUSE_INFO HI on (R.C#HOUSE_ID = HI.C#HOUSE_ID)
-    where
-        A.C#ID = a#acc_id
-    ;        
-    RETURN res;
-  END house_is_open;
-
-
-
-  PROCEDURE DEL#MASS_PAY_FOR_ACC(a#acc_id NUMBER) AS
-    A#NUM VARCHAR2(50);
-  BEGIN
-    select C#NUM into A#NUM from fcr.v#account where c#id = a#acc_id and c#end_date is not null;
-    if A#NUM is not null then
-        execute immediate 'ALTER TRIGGER TR#OP_VD#STOP_MOD DISABLE';
-        execute immediate 'ALTER TRIGGER TR#OP#STOP_MOD DISABLE';
-        delete from T#OP where C#ID in (
-            SELECT
-                O.C#ID
-            FROM
-                T#OP O
-                LEFT JOIN T#PAY_SOURCE P ON (P.C#OPS_ID = O.C#OPS_ID)
-            WHERE
-                O.C#ACCOUNT_ID = a#acc_id
-                AND P.C#ID IS NULL
-        );
-        delete from T#MASS_PAY where c#acc_id = a#acc_id;
-        COMMIT;
-        execute immediate 'ALTER TRIGGER TR#OP_VD#STOP_MOD ENABLE';
-        execute immediate 'ALTER TRIGGER TR#OP#STOP_MOD ENABLE';
-        DO#RECALC_ACCOUNT(A#NUM ,TO_DATE('01.06.2014','dd.mm.yyyy'));
-        COMMIT;
-    end if;    
-  END DEL#MASS_PAY_FOR_ACC;
-
-  FUNCTION account_is_open_error(a#acc_id NUMBER) RETURN VARCHAR2 AS
-    res VARCHAR2(1);
-  BEGIN
-    select CASE count(*) WHEN 0 THEN 'N' ELSE 'Y' END
-    into res
-    from v#account 
-    where C#ID = a#acc_id and C#DATE = c#end_date;
-    RETURN res;
-  END account_is_open_error;
-
-  PROCEDURE FILL_CHARGE_PAY_J_TABLES(p_PERSON_ID INTEGER) AS
-  BEGIN
-DELETE FROM tt#akt_j;
-
-INSERT INTO tt#akt_j SELECT
-    ch.c#account_id,
-    ch.m,
-    nach,
-    sum_op
-FROM
-    (
         SELECT
-            t1.c#person_id,
-            t1.m,
-            t1.c#account_id,
-            MAX(t1.c#tar_val) c#tar_val,
-            SUM(nach) nach
+            SUM(rsvd.c#area_val)
+        INTO
+            res
         FROM
+            t#account a,
+            t#rooms r,
+            t#rooms_spec rs,
             (
                 SELECT
-                    t.c#person_id,
-                    TO_CHAR(
-                        p#mn_utils.get#date(tc.c#a_mn),
-                        'mm.yyyy'
-                    ) m,
-                    tc.c#account_id,
-                    MAX(v.c#tar_val) c#tar_val,
-                    SUM(tc.c#sum) nach
+                    *
                 FROM
-                    fcr.t#charge tc
-                    INNER JOIN (
-                        SELECT
-                            *
-                        FROM
-                            (
-                                SELECT
-                                    asp.c#person_id,
-                                    asp.c#account_id,
-                                    a.c#num,
-                                    asp.c#date,
-                                    nvl(
-                                        LEAD(
-                                            asp.c#date
-                                        ) OVER(PARTITION BY
-                                            asp.c#account_id
-                                            ORDER BY asp.c#date
-                                        ),
-                                        fcr.p#mn_utils.get#date(fcr.p#utils.get#open_mn + 1)
-                                    ) "C#NEXT_DATE"
-                                FROM
-                                    v#account_spec asp
-                                    INNER JOIN t#account a ON (
-                                        a.c#id = asp.c#account_id
-                                    )
-                                WHERE
-                                        1 = 1
-                                    AND
-                                        asp.c#valid_tag = 'Y'
-                                    AND
-                                        asp.c#account_id IN (
-                                            SELECT
-                                                c#account_id
-                                            FROM
-                                                v#account_spec
-                                            WHERE
-                                                    1 = 1
-                                                AND
-                                                    c#valid_tag = 'Y'
-                                                AND
-                                                    c#person_id = p_PERSON_ID
-                                        )
-                            ) t2
-                        WHERE
-                            c#person_id = p_PERSON_ID
-                    ) t ON (
-                            tc.c#account_id = t.c#account_id
-                        AND
-                            tc.c#a_mn <= fcr.p#mn_utils.get#mn(t.c#next_date)
-                    )
-                    LEFT JOIN (
-                        SELECT
-                            vw.c#id,
-                            vw.c#date,
-                            tobj.c#account_id,
-                            vw.c#tar_val
-                        FROM
-                            fcr.v#obj tobj
-                            INNER JOIN fcr.v#work vw ON (
-                                tobj.c#work_id = vw.c#id
-                            )
-                    ) v ON (
-                            v.c#account_id = tc.c#account_id
-                        AND
-                            tc.c#work_id = v.c#id
-                    )
+                    t#rooms_spec_vd rsvd
                 WHERE
                     1 = 1
-                GROUP BY
-                    t.c#person_id,
-                    TO_CHAR(
-                        p#mn_utils.get#date(tc.c#a_mn),
-                        'mm.yyyy'
-                    ),
-                    tc.c#account_id
-            ) t1
-        GROUP BY
-            t1.c#person_id,
-            t1.m,
-            t1.c#account_id
-    ) ch
-    LEFT JOIN (
+                    AND   rsvd.c#valid_tag = 'Y'
+                    AND   rsvd.c#vn = (
+                        SELECT
+                            MAX(t.c#vn)
+                        FROM
+                            t#rooms_spec_vd t
+                        WHERE
+                            t.c#id = rsvd.c#id
+                    )
+            ) rsvd
+        WHERE
+            1 = 1
+            AND   a.c#id = a#acc_id
+            AND   a.c#rooms_id = r.c#id
+            AND   rs.c#rooms_id = r.c#id
+            AND   rs.c#id = rsvd.c#id
+            AND   rs.c#date <= a#date;
+
+        RETURN res;
+    END;
+
+    FUNCTION get#acc_addr (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2 AS
+        ret   VARCHAR2(500);
+    BEGIN
         SELECT
-            c#account_id,
-            m,
-            SUM(sum_op) sum_op
+            p#utils.get#rooms_addr(c#rooms_id)
+        INTO
+            ret
         FROM
-            (
+            t#account
+        WHERE
+            c#id = a#acc_id
+            AND   ROWNUM < 2;
+
+        RETURN ret;
+    END get#acc_addr;
+
+    FUNCTION get#end_account_mn (
+        a#acc_id NUMBER
+    ) RETURN NUMBER AS
+        ret   NUMBER;
+    BEGIN
+        SELECT
+            nvl(p#mn_utils.get#mn(l.c#end_date),1000)
+        INTO
+            ret
+        FROM
+            v#acc_last_end l
+        WHERE
+            l.c#account_id = a#acc_id;
+
+        RETURN ret;
+    END get#end_account_mn;
+
+    FUNCTION get#count_88 (
+        a#acc_id NUMBER
+    ) RETURN NUMBER AS
+        ret   NUMBER;
+    BEGIN
+        SELECT
+            COUNT(*)
+        INTO
+            ret
+        FROM
+            t#pay_source
+        WHERE
+            c#cod_rkc = '88'
+            AND   nvl(c#acc_id,c#acc_id_close) = a#acc_id;
+
+        RETURN ret;
+    END get#count_88;
+
+    FUNCTION get#acc_id#by#acc_num (
+        a#acc_num VARCHAR2
+    ) RETURN NUMBER AS
+        ret   NUMBER;
+    BEGIN
+        SELECT
+            c#id
+        INTO
+            ret
+        FROM
+            v#account
+        WHERE
+            c#num = a#acc_num;
+
+        RETURN ret;
+    END get#acc_id#by#acc_num;
+
+    FUNCTION get#acc_num#by#acc_id (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2 AS
+        ret   VARCHAR2(50);
+    BEGIN
+        SELECT
+            c#num
+        INTO
+            ret
+        FROM
+            v#account
+        WHERE
+            c#id = a#acc_id;
+
+        RETURN ret;
+    END get#acc_num#by#acc_id;
+
+-- перенос всех платежей со счета на счет (в параметрах указывать внутренние счета)  
+
+    PROCEDURE transfer#all_pays (
+        from_acc_num VARCHAR2,
+        to_acc_num VARCHAR2
+    ) AS
+
+        CURSOR pays IS SELECT
+            p.c#id ps_id,
+            p#tools.get#acc_id#by#acc_num(to_acc_num) to_acc_id,
+            SYSDATE tr_date,
+            p#utils.get#open_mn() tr_mn
+                       FROM
+            t#pay_source p
+            JOIN v#account a ON ( nvl(c#acc_id,c#acc_id_close) = a.c#id )
+                       WHERE
+            a.c#num = from_acc_num
+            AND   p.c#storno_id IS NULL
+            AND   p.c#id NOT IN (
                 SELECT
-                    vop.c#account_id,
-                    TO_CHAR(
-                        CASE
-                            WHEN(
-                                SELECT
-                                    c#date
-                                FROM
-                                    v#account va
-                                WHERE
-                                    va.c#id = vop.c#account_id
-                            ) > c#real_date THEN(
-                                SELECT
-                                    c#date
-                                FROM
-                                    v#account va
-                                WHERE
-                                    va.c#id = vop.c#account_id
-                            )
-                            WHEN months_between(
-                                c#real_date,
-                                (
+                    c#storno_id
+                FROM
+                    t#pay_source
+                WHERE
+                    c#storno_id IS NOT NULL
+            );
+
+    BEGIN
+        FOR p IN pays LOOP
+            transfer#pay(p.ps_id,p.to_acc_id,p.tr_date,p.tr_mn);
+        END LOOP;
+    END transfer#all_pays;
+
+    PROCEDURE set_rooms_area (
+        p_rooms_id NUMBER,
+        p_new_area NUMBER
+    ) AS
+        a#id    NUMBER;
+        a#vn    NUMBER;
+        a#lt    VARCHAR2(1);
+        a#ott   VARCHAR2(1);
+    BEGIN
+        SELECT
+            c#id
+        INTO
+            a#id
+        FROM
+            t#rooms_spec
+        WHERE
+            c#rooms_id = p_rooms_id
+            AND   c#date = (
+                SELECT
+                    MAX(c#date)
+                FROM
+                    t#rooms_spec
+                WHERE
+                    c#rooms_id = p_rooms_id
+            );
+
+        SELECT
+            MAX(c#vn)
+        INTO
+            a#vn
+        FROM
+            t#rooms_spec_vd
+        WHERE
+            c#id = a#id;
+
+        SELECT
+            c#living_tag,
+            c#own_type_tag
+        INTO
+            a#lt,a#ott
+        FROM
+            t#rooms_spec_vd
+        WHERE
+            c#id = a#id
+            AND   c#vn = a#vn;
+
+        INSERT INTO t#rooms_spec_vd (
+            c#id,
+            c#vn,
+            c#valid_tag,
+            c#living_tag,
+            c#own_type_tag,
+            c#area_val
+        ) VALUES (
+            a#id,
+            a#vn + 1,
+            'Y',
+            a#lt,
+            a#ott,
+            p_new_area
+        );
+
+        COMMIT;
+    END set_rooms_area;
+
+    FUNCTION house_is_open (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2 AS
+        res   VARCHAR2(1);
+    BEGIN
+        SELECT
+            CASE
+                WHEN hi.c#end_date IS NULL THEN 'Y'
+                ELSE 'N'
+            END
+        INTO
+            res
+        FROM
+            v#account a
+            JOIN v#rooms r ON ( a.c#rooms_id = r.c#rooms_id )
+            JOIN t#house_info hi ON ( r.c#house_id = hi.c#house_id )
+        WHERE
+            a.c#id = a#acc_id;
+
+        RETURN res;
+    END house_is_open;
+
+    PROCEDURE del#mass_pay_for_acc (
+        a#acc_id NUMBER
+    ) AS
+        a#num   VARCHAR2(50);
+    BEGIN
+        SELECT
+            c#num
+        INTO
+            a#num
+        FROM
+            fcr.v#account
+        WHERE
+            c#id = a#acc_id
+            AND   c#end_date IS NOT NULL;
+
+        IF
+            a#num IS NOT NULL
+        THEN
+            EXECUTE IMMEDIATE 'ALTER TRIGGER TR#OP_VD#STOP_MOD DISABLE';
+            EXECUTE IMMEDIATE 'ALTER TRIGGER TR#OP#STOP_MOD DISABLE';
+            DELETE FROM t#op
+            WHERE
+                c#id IN (
+                    SELECT
+                        o.c#id
+                    FROM
+                        t#op o
+                        LEFT JOIN t#pay_source p ON ( p.c#ops_id = o.c#ops_id )
+                    WHERE
+                        o.c#account_id = a#acc_id
+                        AND   p.c#id IS NULL
+                );
+
+            DELETE FROM t#mass_pay WHERE
+                c#acc_id = a#acc_id;
+
+            COMMIT;
+            EXECUTE IMMEDIATE 'ALTER TRIGGER TR#OP_VD#STOP_MOD ENABLE';
+            EXECUTE IMMEDIATE 'ALTER TRIGGER TR#OP#STOP_MOD ENABLE';
+            do#recalc_account(a#num,TO_DATE('01.06.2014','dd.mm.yyyy') );
+            COMMIT;
+        END IF;
+
+    END del#mass_pay_for_acc;
+
+    FUNCTION account_is_open_error (
+        a#acc_id NUMBER
+    ) RETURN VARCHAR2 AS
+        res   VARCHAR2(1);
+    BEGIN
+        SELECT
+            CASE COUNT(*)
+                WHEN 0   THEN 'N'
+                ELSE 'Y'
+            END
+        INTO
+            res
+        FROM
+            v#account
+        WHERE
+            c#id = a#acc_id
+            AND   c#date = c#end_date;
+
+        RETURN res;
+    END account_is_open_error;
+
+    PROCEDURE fill_charge_pay_j_tables (
+        p_person_id INTEGER
+    )
+        AS
+    BEGIN
+        DELETE FROM tt#akt_j;
+
+        INSERT INTO tt#akt_j
+            SELECT
+                ch.c#account_id,
+                ch.m,
+                nach,
+                sum_op
+            FROM
+                (
+                    SELECT
+                        t1.c#person_id,
+                        t1.m,
+                        t1.c#account_id,
+                        MAX(t1.c#tar_val) c#tar_val,
+                        SUM(nach) nach
+                    FROM
+                        (
+                            SELECT
+                                t.c#person_id,
+                                TO_CHAR(p#mn_utils.get#date(tc.c#a_mn),'mm.yyyy') m,
+                                tc.c#account_id,
+                                MAX(v.c#tar_val) c#tar_val,
+                                SUM(tc.c#sum) nach
+                            FROM
+                                fcr.t#charge tc
+                                INNER JOIN (
                                     SELECT
-                                        c#end_date
+                                        *
                                     FROM
-                                        v#account va
-                                    WHERE
-                                        va.c#id = vop.c#account_id
-                                )
-                            ) >-1 THEN
-                                CASE
-                                    WHEN(
-                                        SELECT
-                                            c#end_date
-                                        FROM
-                                            v#account va
-                                        WHERE
-                                            va.c#id = vop.c#account_id
-                                    ) > (
-                                        SELECT
-                                            c#date
-                                        FROM
-                                            v#account va
-                                        WHERE
-                                            va.c#id = vop.c#account_id
-                                    ) THEN add_months(
                                         (
+                                            SELECT
+                                                asp.c#person_id,
+                                                asp.c#account_id,
+                                                a.c#num,
+                                                asp.c#date,
+                                                nvl(LEAD(asp.c#date) OVER(
+                                                    PARTITION BY asp.c#account_id
+                                                    ORDER BY
+                                                        asp.c#date
+                                                ),fcr.p#mn_utils.get#date(fcr.p#utils.get#open_mn + 1) ) "C#NEXT_DATE"
+                                            FROM
+                                                v#account_spec asp
+                                                INNER JOIN t#account a ON ( a.c#id = asp.c#account_id )
+                                            WHERE
+                                                1 = 1
+                                                AND   asp.c#valid_tag = 'Y'
+                                                AND   asp.c#account_id IN (
+                                                    SELECT
+                                                        c#account_id
+                                                    FROM
+                                                        v#account_spec
+                                                    WHERE
+                                                        1 = 1
+                                                        AND   c#valid_tag = 'Y'
+                                                        AND   c#person_id = p_person_id
+                                                )
+                                        ) t2
+                                    WHERE
+                                        c#person_id = p_person_id
+                                ) t ON ( tc.c#account_id = t.c#account_id
+                                         AND tc.c#a_mn <= fcr.p#mn_utils.get#mn(t.c#next_date) )
+                                LEFT JOIN (
+                                    SELECT
+                                        vw.c#id,
+                                        vw.c#date,
+                                        tobj.c#account_id,
+                                        vw.c#tar_val
+                                    FROM
+                                        fcr.v#obj tobj
+                                        INNER JOIN fcr.v#work vw ON ( tobj.c#work_id = vw.c#id )
+                                ) v ON ( v.c#account_id = tc.c#account_id
+                                         AND tc.c#work_id = v.c#id )
+                            WHERE
+                                1 = 1
+                            GROUP BY
+                                t.c#person_id,
+                                TO_CHAR(p#mn_utils.get#date(tc.c#a_mn),'mm.yyyy'),
+                                tc.c#account_id
+                        ) t1
+                    GROUP BY
+                        t1.c#person_id,
+                        t1.m,
+                        t1.c#account_id
+                ) ch
+                LEFT JOIN (
+                    SELECT
+                        c#account_id,
+                        m,
+                        SUM(sum_op) sum_op
+                    FROM
+                        (
+                            SELECT
+                                vop.c#account_id,
+                                TO_CHAR(
+                                    CASE
+                                        WHEN(
+                                            SELECT
+                                                c#date
+                                            FROM
+                                                v#account va
+                                            WHERE
+                                                va.c#id = vop.c#account_id
+                                        ) > c#real_date THEN(
+                                            SELECT
+                                                c#date
+                                            FROM
+                                                v#account va
+                                            WHERE
+                                                va.c#id = vop.c#account_id
+                                        )
+                                        WHEN months_between(c#real_date, (
                                             SELECT
                                                 c#end_date
                                             FROM
                                                 v#account va
                                             WHERE
                                                 va.c#id = vop.c#account_id
-                                        ),
-                                        -1
-                                    )
-                                    ELSE(
-                                        SELECT
-                                            c#end_date
-                                        FROM
-                                            v#account va
-                                        WHERE
-                                            va.c#id = vop.c#account_id
-                                    )
-                                END
-                            ELSE
-                                CASE
-                                    WHEN months_between(c#real_date,t.c#next_date) >-1 THEN add_months(t.c#next_date,-1)
-                                    ELSE c#real_date
-                                END
-                        END,
-                        'mm.yyyy'
-                    ) m,
-                    SUM(c#sum) sum_op
-                FROM
-                    fcr.v#op vop
-                    INNER JOIN (
-                        SELECT
-                            *
-                        FROM
-                            (
-                                SELECT
-                                    asp.c#person_id,
-                                    asp.c#account_id,
-                                    a.c#num,
-                                    asp.c#date,
-                                    nvl(
-                                        LEAD(
-                                            asp.c#date
-                                        ) OVER(PARTITION BY
-                                            asp.c#account_id
-                                            ORDER BY asp.c#date
-                                        ),
-                                        fcr.p#mn_utils.get#date(fcr.p#utils.get#open_mn + 1)
-                                    ) "C#NEXT_DATE"
-                                FROM
-                                    v#account_spec asp
-                                    INNER JOIN t#account a ON (
-                                        a.c#id = asp.c#account_id
-                                    )
-                                WHERE
-                                        1 = 1
-                                    AND
-                                        asp.c#valid_tag = 'Y'
-                                    AND
-                                        asp.c#account_id IN (
+                                        ) ) >-1 THEN
+                                            CASE
+                                                WHEN(
+                                                    SELECT
+                                                        c#end_date
+                                                    FROM
+                                                        v#account va
+                                                    WHERE
+                                                        va.c#id = vop.c#account_id
+                                                ) > (
+                                                    SELECT
+                                                        c#date
+                                                    FROM
+                                                        v#account va
+                                                    WHERE
+                                                        va.c#id = vop.c#account_id
+                                                ) THEN add_months( (
+                                                    SELECT
+                                                        c#end_date
+                                                    FROM
+                                                        v#account va
+                                                    WHERE
+                                                        va.c#id = vop.c#account_id
+                                                ),-1)
+                                                ELSE(
+                                                    SELECT
+                                                        c#end_date
+                                                    FROM
+                                                        v#account va
+                                                    WHERE
+                                                        va.c#id = vop.c#account_id
+                                                )
+                                            END
+                                        ELSE
+                                            CASE
+                                                WHEN months_between(c#real_date,t.c#next_date) >-1  THEN add_months(t.c#next_date,-1)
+                                                ELSE c#real_date
+                                            END
+                                    END,'mm.yyyy') m,
+                                SUM(c#sum) sum_op
+                            FROM
+                                fcr.v#op vop
+                                INNER JOIN (
+                                    SELECT
+                                        *
+                                    FROM
+                                        (
                                             SELECT
-                                                c#account_id
+                                                asp.c#person_id,
+                                                asp.c#account_id,
+                                                a.c#num,
+                                                asp.c#date,
+                                                nvl(LEAD(asp.c#date) OVER(
+                                                    PARTITION BY asp.c#account_id
+                                                    ORDER BY
+                                                        asp.c#date
+                                                ),fcr.p#mn_utils.get#date(fcr.p#utils.get#open_mn + 1) ) "C#NEXT_DATE"
                                             FROM
-                                                v#account_spec
+                                                v#account_spec asp
+                                                INNER JOIN t#account a ON ( a.c#id = asp.c#account_id )
                                             WHERE
-                                                    1 = 1
-                                                AND
-                                                    c#valid_tag = 'Y'
-                                                AND
-                                                    c#person_id = p_PERSON_ID
-                                        )
-                            ) t2
-                        WHERE
-                            c#person_id = p_PERSON_ID
-                    ) t ON (
-                            vop.c#account_id = t.c#account_id
-                        AND
-                            vop.c#a_mn <= fcr.p#mn_utils.get#mn(t.c#next_date)
-                    )
-                WHERE
-                    1 = 1
-                GROUP BY
-                    vop.c#account_id,
-                    c#real_date,
-                    t.c#next_date
-            ) t
-        GROUP BY
-            c#account_id,
-            m
-    ) op ON (
-            ch.m = op.m
-        AND
-            ch.c#account_id = op.c#account_id
-    );
+                                                1 = 1
+                                                AND   asp.c#valid_tag = 'Y'
+                                                AND   asp.c#account_id IN (
+                                                    SELECT
+                                                        c#account_id
+                                                    FROM
+                                                        v#account_spec
+                                                    WHERE
+                                                        1 = 1
+                                                        AND   c#valid_tag = 'Y'
+                                                        AND   c#person_id = p_person_id
+                                                )
+                                        ) t2
+                                    WHERE
+                                        c#person_id = p_person_id
+                                ) t ON ( vop.c#account_id = t.c#account_id
+                                         AND vop.c#a_mn <= fcr.p#mn_utils.get#mn(t.c#next_date) )
+                            WHERE
+                                1 = 1
+                            GROUP BY
+                                vop.c#account_id,
+                                c#real_date,
+                                t.c#next_date
+                        ) t
+                    GROUP BY
+                        c#account_id,
+                        m
+                ) op ON ( ch.m = op.m
+                          AND ch.c#account_id = op.c#account_id );
 
-COMMIT;
-  
-        delete from TT#CHARGE_PAY_J;
-        insert into TT#CHARGE_PAY_J
-        with
-            acc as (
-                select
-                    C#ACCOUNT_ID,
-                    C#ACC_NUM
-                from
-                    V#ACC_LAST2
-                WHERE
-                    C#PERSON_ID = p_PERSON_ID
-            )
-            ,ch as (
-                select
-                    C#ACCOUNT_ID,
-                    C#A_MN,
-                    SUM(C#SUM) CHARGE_SUM
-                from
-                    t#charge
-                where
-                    C#ACCOUNT_ID in (select C#ACCOUNT_ID from acc)
-                GROUP BY
-                    C#ACCOUNT_ID,
-                    C#A_MN
-            )
-            ,pay as (
-                select
-                    C#ACCOUNT_ID,
-                    C#A_MN,
-                    SUM(C#SUM) PAY_SUM
-                from
-                    v#op
-                where
-                    C#ACCOUNT_ID in (select C#ACCOUNT_ID from acc)
-                GROUP BY
-                    C#ACCOUNT_ID,
-                    C#A_MN
-            )
-            ,alls as (
-                select
-                    acc.*,
-                    ch.C#A_MN,
-                    ch.CHARGE_SUM,
-                    pay.PAY_SUM
-                from
-                    acc
-                    left join ch on (acc.C#ACCOUNT_ID = ch.C#ACCOUNT_ID)
-                    left join pay on (ch.C#ACCOUNT_ID = pay.C#ACCOUNT_ID and ch.C#A_MN = pay.C#A_MN)
-            )
-        select
-            *
-        from
-            alls
-        ;
         COMMIT;
-        
-        
-        P#REPORTS.LST#REESTR2(p_PERSON_ID);
+        DELETE FROM tt#charge_pay_j;
 
-        P#PRINT_BILL_J.do#prepare2(TO_DATE('01.06.2014','dd.mm.yyyy'),sysdate,p_PERSON_ID);
+        INSERT INTO tt#charge_pay_j
+            WITH acc AS (
+                SELECT
+                    c#account_id,
+                    c#acc_num
+                FROM
+                    v#acc_last2
+                WHERE
+                    c#person_id = p_person_id
+            ),ch AS (
+                SELECT
+                    c#account_id,
+                    c#a_mn,
+                    SUM(c#sum) charge_sum
+                FROM
+                    t#charge
+                WHERE
+                    c#account_id IN (
+                        SELECT
+                            c#account_id
+                        FROM
+                            acc
+                    )
+                GROUP BY
+                    c#account_id,
+                    c#a_mn
+            ),pay AS (
+                SELECT
+                    c#account_id,
+                    c#a_mn,
+                    SUM(c#sum) pay_sum
+                FROM
+                    v#op
+                WHERE
+                    c#account_id IN (
+                        SELECT
+                            c#account_id
+                        FROM
+                            acc
+                    )
+                GROUP BY
+                    c#account_id,
+                    c#a_mn
+            ),alls AS (
+                SELECT
+                    acc.*,
+                    ch.c#a_mn,
+                    ch.charge_sum,
+                    pay.pay_sum
+                FROM
+                    acc left
+                    JOIN ch ON ( acc.c#account_id = ch.c#account_id )
+                    LEFT JOIN pay ON ( ch.c#account_id = pay.c#account_id
+                                       AND ch.c#a_mn = pay.c#a_mn )
+            ) SELECT
+                *
+              FROM
+                alls;
 
-  END FILL_CHARGE_PAY_J_TABLES;
+        COMMIT;
+        p#reports.lst#reestr2(p_person_id);
+        p#print_bill_j.do#prepare2(TO_DATE('01.06.2014','dd.mm.yyyy'),SYSDATE,p_person_id);
+    END fill_charge_pay_j_tables;
 
-    FUNCTION ACC_TYPE_BY_HOUSE_ID(a#house_id NUMBER) RETURN VARCHAR2 AS
-        res varchar2(3);
+    FUNCTION acc_type_by_house_id (
+        a#house_id NUMBER
+    ) RETURN VARCHAR2 AS
+        res   VARCHAR2(3);
     BEGIN
-        select acc_type into res from V4_BANK_VD where house_id = a#house_id;
-        RETURN res;
-    END ACC_TYPE_BY_HOUSE_ID;
+        SELECT
+            acc_type
+        INTO
+            res
+        FROM
+            v4_bank_vd
+        WHERE
+            house_id = a#house_id;
 
-    FUNCTION GET_HOUSE_BALANCE_2043(p_house_id number) return number AS
-        curMN NUMBER;
-        totalPay NUMBER;
-        mnPay NUMBER;
-        res NUMBER;
+        RETURN res;
+    END acc_type_by_house_id;
+
+    FUNCTION get_house_balance_2043 (
+        p_house_id NUMBER
+    ) RETURN NUMBER AS
+        curmn      NUMBER;
+        totalpay   NUMBER;
+        mnpay      NUMBER;
+        res        NUMBER;
     BEGIN
-        select P#UTILS.GET#OPEN_MN() into curMN from dual;
-        select CHARGE_SUM_MN, PAY_SUM_TOTAL into mnPay, totalPay from T#TOTAL_HOUSE where MN = curMN and HOUSE_ID = p_house_id;
-        res := totalPay+(516-curMN)*mnPay;
-        RETURN res;
-    END GET_HOUSE_BALANCE_2043;
+        SELECT
+            p#utils.get#open_mn()
+        INTO
+            curmn
+        FROM
+            dual;
+--        select CHARGE_SUM_MN, PAY_SUM_TOTAL into mnPay, totalPay from T#TOTAL_HOUSE where MN = curMN and HOUSE_ID = p_house_id;
 
-END P#TOOLS;
+        SELECT
+            charge_sum_mn,
+            pay_sum_total
+        INTO
+            mnpay,totalpay
+        FROM
+            v3_house_balance
+        WHERE
+            mn = curmn
+            AND   house_id = p_house_id;
+
+        res := totalpay + ( 516 - curmn ) * mnpay;
+        RETURN res;
+    END get_house_balance_2043;
+
+    FUNCTION period_in_words (
+        p_period VARCHAR2
+    ) RETURN VARCHAR2 AS
+        m   NUMBER;
+        mw varchar2(10);
+    BEGIN
+        m := substr(p_period,0,2);
+        mw := CASE m
+            when 1 then 'январь'
+            when 2 then '‘евраль'
+            when 3 then 'ћарт'
+            when 4 then 'јпрель'
+            when 5 then 'ћай'
+            when 6 then '»юнь'
+            when 7 then '»юль'
+            when 8 then 'јвгуст'
+            when 9 then '—ент€брь'
+            when 10 then 'ќкт€брь'
+            when 11 then 'Ќо€брь'
+            when 12 then 'ƒекабрь'
+        END;
+        RETURN mw||' '||substr(p_period,4,4);
+    END period_in_words;
+
+END p#tools;
 /
