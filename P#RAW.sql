@@ -14,6 +14,70 @@ END p#raw;
 
 CREATE OR REPLACE PACKAGE BODY p#raw AS
 
+
+------------------------------------------
+
+    PROCEDURE load_post_to_paysource
+        AS
+    BEGIN
+        INSERT INTO t#pay_source (
+            c#account,
+            c#real_date,
+            c#summa,
+            c#period,
+            c#cod_rkc,
+            c#pay_num,
+            c#file_id,
+            c#comment,
+            c#plat
+        )
+            SELECT
+                regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1),
+                dt_pay,
+                sum_pl,
+                period,
+                '52' rkc,
+                n_oper,
+                -2 file_id,
+                file_name,
+                fio
+            FROM
+                t#raw_post
+            WHERE
+                id NOT IN (
+                    SELECT
+                        r.id
+                    FROM
+                        t#pay_source p
+                        JOIN t#raw_sber r ON ( c#real_date = dt_pay
+                                               AND   (
+                            regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1) = c#account
+                            OR    ls = c#account
+                        )
+                                               AND   sum_pl = c#summa
+                                               AND   c#comment = fio
+                                               AND   period = c#period
+                                               AND   c#pay_num = n_oper )
+                    WHERE
+                        c#cod_rkc = 52
+                )
+            MINUS
+            SELECT
+                c#account,
+                c#real_date,
+                c#summa,
+                c#period,
+                c#cod_rkc,
+                TO_CHAR(c#pay_num),
+                c#file_id,
+                c#comment,
+                c#plat
+            FROM
+                t#pay_source
+            WHERE
+                c#file_id =-2;
+
+    END;
 ------------------------------------------
 
     PROCEDURE load_sber_to_paysource
@@ -249,6 +313,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         AS
     BEGIN
         del_doubles_post ();
+        load_post_to_paysource ();
     END after_load_post;
 ------------------------------------------
 
@@ -265,6 +330,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     BEGIN
         del_doubles_online ();
     END after_load_online;
+------------------------------------------
 
 END p#raw;
 /
