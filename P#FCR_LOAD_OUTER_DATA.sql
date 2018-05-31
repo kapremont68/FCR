@@ -137,38 +137,72 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA"
 
     END INS#KOTEL_OTHER_PRIH;
 
-  PROCEDURE INS#SPEC_PRIHOD(A#ID_HOUSE IN NUMBER,
-                            A#DT_PAY   IN DATE,
-                            A#PAY      IN NUMBER,
-                            A#COMMENT     VARCHAR2)
-    IS
-      a#hash  VARCHAR2(100);
-      a#exist INTEGER;
+      PROCEDURE ins#spec_prihod (
+        a#id_house   IN NUMBER,
+        a#dt_pay     IN DATE,
+        a#pay        IN NUMBER,
+        a#comment    VARCHAR2
+    ) IS
+        a#hash    VARCHAR2(1000);
+        a#exist   INTEGER;
     BEGIN
+        a#hash := TO_CHAR(a#id_house)
+        || TO_CHAR(a#dt_pay,'dd.mm.yyyy')
+        || TO_CHAR(a#pay)
+        || a#comment;
 
-      a#hash := TO_CHAR(A#ID_HOUSE) || TO_CHAR(A#DT_PAY, 'dd.mm.yyyy') || TO_CHAR(A#PAY) || A#COMMENT;
-      SELECT COUNT(*)
-        INTO a#exist
-        FROM fcr.SPEC_PRIHOD
-        WHERE (TO_CHAR(ID_HOUSE) || TO_CHAR(DT_PAY, 'dd.mm.yyyy') || TO_CHAR(PAY) || C#COMMENT) = a#hash;
-      IF a#exist = 0
-      THEN
+        SELECT
+            COUNT(*)
+        INTO
+            a#exist
+        FROM
+            fcr.spec_prihod
+        WHERE
+            ( TO_CHAR(id_house)
+            || TO_CHAR(dt_pay,'dd.mm.yyyy')
+            || TO_CHAR(pay)
+            || c#comment ) = a#hash;
 
-        INSERT INTO fcr.SPEC_PRIHOD (
-          ID_HOUSE, DT_PAY, PAY, C#COMMENT
-        )
-        VALUES (A#ID_HOUSE, A#DT_PAY, A#PAY, A#COMMENT);
-        COMMIT;
-      END IF;
+        IF
+            a#exist = 0
+        THEN
+            INSERT INTO fcr.spec_prihod (
+                id_house,
+                dt_pay,
+                pay,
+                c#comment
+            ) VALUES (
+                a#id_house,
+                a#dt_pay,
+                REPLACE(TO_CHAR(a#pay),'.',','),
+                a#comment
+            );
+
+            COMMIT;
+        END IF;
+
     EXCEPTION
-      WHEN OTHERS THEN a#err := 'Error - ' || TO_CHAR(SQLCODE) || ' - ' || SQLERRM;
-          INSERT INTO fcr.t#exception (
-            c#name_package, c#name_proc, c#date, c#text, c#comment
-          )
-          VALUES ('P#FCR_LOAD_OUTER_DATA', 'INS#SPEC_PRIHOD', sysdate, a#err, A#COMMENT);
-          ROLLBACK;
+        WHEN OTHERS THEN
+            a#err := 'Error - '
+            || TO_CHAR(sqlcode)
+            || ' - '
+            || sqlerrm;
+            INSERT INTO fcr.t#exception (
+                c#name_package,
+                c#name_proc,
+                c#date,
+                c#text,
+                c#comment
+            ) VALUES (
+                'P#FCR_LOAD_OUTER_DATA',
+                'INS#SPEC_PRIHOD',
+                SYSDATE,
+                a#err,
+                a#comment
+            );
 
-    END INS#SPEC_PRIHOD;
+            ROLLBACK;
+    END ins#spec_prihod;
 
 
   /** 
