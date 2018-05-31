@@ -16,6 +16,71 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
 
 ------------------------------------------
 
+    PROCEDURE load_sber_to_paysource
+        AS
+    BEGIN
+        INSERT INTO t#pay_source (
+            c#account,
+            c#real_date,
+            c#summa,
+            c#period,
+            c#cod_rkc,
+            c#pay_num,
+            c#file_id,
+            c#comment,
+            c#plat
+        )
+            SELECT
+                regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1),
+                dt_pay,
+                sum_pl,
+                period,
+                '51' rkc,
+                n_oper,
+                -1 file_id,
+                file_name,
+                fio
+            FROM
+                t#raw_sber
+            WHERE
+                id NOT IN (
+                    SELECT
+                        r.id
+                    FROM
+                        t#pay_source p
+                        JOIN t#raw_sber r ON ( c#real_date = dt_pay
+                                               AND   (
+                            regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1) = c#account
+                            OR    ls = c#account
+                        )
+                                               AND   sum_pl = c#summa
+                                               AND   c#comment = fio
+                                               AND   period = c#period
+                                               AND   c#pay_num = n_oper )
+                    WHERE
+                        c#cod_rkc = 51
+                )
+            MINUS
+            SELECT
+                c#account,
+                c#real_date,
+                c#summa,
+                c#period,
+                c#cod_rkc,
+                TO_CHAR(c#pay_num),
+                c#file_id,
+                c#comment,
+                c#plat
+            FROM
+                t#pay_source
+            WHERE
+                c#file_id =-1;
+
+        COMMIT;
+    END;
+
+------------------------------------------
+
     PROCEDURE calc_spec_prihod_vozvrat
         AS
     BEGIN
@@ -37,7 +102,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END;
 ------------------------------------------
 
-    PROCEDURE after_load_sber
+    PROCEDURE del_doubles_sber
         AS
     BEGIN
         DELETE FROM t#raw_sber
@@ -68,10 +133,11 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             );
 
         COMMIT;
-    END after_load_sber;
+    END;
+
 ------------------------------------------
 
-    PROCEDURE after_load_post
+    PROCEDURE del_doubles_post
         AS
     BEGIN
         DELETE FROM t#raw_post
@@ -102,10 +168,10 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             );
 
         COMMIT;
-    END after_load_post;
+    END;
 ------------------------------------------
 
-    PROCEDURE after_load_1c
+    PROCEDURE del_doubles_1c
         AS
     BEGIN
         DELETE FROM t#raw_1c_v101
@@ -134,13 +200,10 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             );
 
         COMMIT;
-        
-        calc_spec_prihod_vozvrat();
-        
-    END after_load_1c;
+    END;
 ------------------------------------------
 
-    PROCEDURE after_load_online
+    PROCEDURE del_doubles_online
         AS
     BEGIN
         DELETE FROM t#raw_online
@@ -171,6 +234,36 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             );
 
         COMMIT;
+    END;
+------------------------------------------
+
+    PROCEDURE after_load_sber
+        AS
+    BEGIN
+        del_doubles_sber ();
+        load_sber_to_paysource ();
+    END after_load_sber;
+------------------------------------------
+
+    PROCEDURE after_load_post
+        AS
+    BEGIN
+        del_doubles_post ();
+    END after_load_post;
+------------------------------------------
+
+    PROCEDURE after_load_1c
+        AS
+    BEGIN
+        del_doubles_1c ();
+        calc_spec_prihod_vozvrat ();
+    END after_load_1c;
+------------------------------------------
+
+    PROCEDURE after_load_online
+        AS
+    BEGIN
+        del_doubles_online ();
     END after_load_online;
 
 END p#raw;
