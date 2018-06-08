@@ -1,14 +1,8 @@
 CREATE OR REPLACE PACKAGE p#raw AS
 
-    PROCEDURE after_load_sber;
-
-    PROCEDURE after_load_post;
-
     PROCEDURE after_load_1c;
 
-    PROCEDURE after_load_online;
-
-    PROCEDURE after_load_tkpb;
+    PROCEDURE after_load_dbf;
 
 END p#raw;
 /
@@ -16,10 +10,9 @@ END p#raw;
 
 CREATE OR REPLACE PACKAGE BODY p#raw AS
 
-
 ------------------------------------------
 
-    PROCEDURE load_post_to_paysource
+    PROCEDURE load_raw_to_paysource
         AS
     BEGIN
         INSERT INTO t#pay_source (
@@ -38,30 +31,29 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
                 dt_pay,
                 sum_pl,
                 period,
-                '52' rkc,
+                vid_oper,
                 n_oper,
-                -2 file_id,
+                file_id,
                 file_name,
                 fio
             FROM
-                t#raw_post
+                t#raw_dbf d
             WHERE
                 id NOT IN (
                     SELECT
                         r.id
                     FROM
                         t#pay_source p
-                        JOIN t#raw_post r ON ( c#real_date = dt_pay
-                                               AND   (
+                        JOIN t#raw_dbf r ON ( c#real_date = dt_pay
+                                              AND   (
                             regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1) = c#account
                             OR    ls = c#account
                         )
-                                               AND   sum_pl = c#summa
-                                               AND   c#comment = fio
-                                               AND   period = c#period
-                                               AND   c#pay_num = n_oper )
-                    WHERE
-                        c#cod_rkc = 52
+                                              AND   sum_pl = c#summa
+                                              AND   p.c#file_id >= 0
+                                              AND   c#comment = fio
+                                              AND   period = c#period
+                                              AND   nvl(c#pay_num,0) = nvl(n_oper,0) )
                 )
             MINUS
             SELECT
@@ -77,196 +69,9 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             FROM
                 t#pay_source
             WHERE
-                c#file_id =-2;
+                c#file_id < 0;
 
     END;
-------------------------------------------
-
-    PROCEDURE load_tkpb_to_paysource
-        AS
-    BEGIN
-        INSERT INTO t#pay_source (
-            c#account,
-            c#real_date,
-            c#summa,
-            c#period,
-            c#cod_rkc,
-            c#file_id,
-            c#comment,
-            c#plat
-        )
-            SELECT
-                regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1),
-                dt_pay,
-                sum_pl,
-                period,
-                '53' rkc,
-                -4 file_id,
-                file_name,
-                fio
-            FROM
-                t#raw_tkpb
-            WHERE
-                id NOT IN (
-                    SELECT
-                        r.id
-                    FROM
-                        t#pay_source p
-                        JOIN t#raw_tkpb r ON ( c#real_date = dt_pay
-                                               AND   (
-                            regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1) = c#account
-                            OR    ls = c#account
-                        )
-                                               AND   sum_pl = c#summa
-                                               AND   c#comment = fio
-                                               AND   period = c#period )
-                    WHERE
-                        c#cod_rkc = 53
-                )
-            MINUS
-            SELECT
-                c#account,
-                c#real_date,
-                c#summa,
-                c#period,
-                c#cod_rkc,
-                c#file_id,
-                c#comment,
-                c#plat
-            FROM
-                t#pay_source
-            WHERE
-                c#file_id =-4;
-
-    END;
-------------------------------------------
-
-    PROCEDURE load_online_to_paysource
-        AS
-    BEGIN
-        INSERT INTO t#pay_source (
-            c#account,
-            c#real_date,
-            c#summa,
-            c#period,
-            c#cod_rkc,
-            c#pay_num,
-            c#file_id,
-            c#comment,
-            c#plat
-        )
-            SELECT
-                regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1),
-                dt_pay,
-                sum_pl,
-                period,
-                '58' rkc,
-                n_oper,
-                -3 file_id,
-                file_name,
-                fio
-            FROM
-                t#raw_online
-            WHERE
-                id NOT IN (
-                    SELECT
-                        r.id
-                    FROM
-                        t#pay_source p
-                        JOIN t#raw_online r ON ( c#real_date = dt_pay
-                                                 AND   (
-                            regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1) = c#account
-                            OR    ls = c#account
-                        )
-                                                 AND   sum_pl = c#summa
-                                                 AND   c#comment = fio
-                                                 AND   period = c#period
-                                                 AND   c#pay_num = n_oper )
-                    WHERE
-                        c#cod_rkc = 58
-                )
-            MINUS
-            SELECT
-                c#account,
-                c#real_date,
-                c#summa,
-                c#period,
-                c#cod_rkc,
-                TO_CHAR(c#pay_num),
-                c#file_id,
-                c#comment,
-                c#plat
-            FROM
-                t#pay_source
-            WHERE
-                c#file_id =-3;
-
-    END;
-------------------------------------------
-
-    PROCEDURE load_sber_to_paysource
-        AS
-    BEGIN
-        INSERT INTO t#pay_source (
-            c#account,
-            c#real_date,
-            c#summa,
-            c#period,
-            c#cod_rkc,
-            c#pay_num,
-            c#file_id,
-            c#comment,
-            c#plat
-        )
-            SELECT
-                regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1),
-                dt_pay,
-                sum_pl,
-                period,
-                '51' rkc,
-                n_oper,
-                -1 file_id,
-                file_name,
-                fio
-            FROM
-                t#raw_sber
-            WHERE
-                id NOT IN (
-                    SELECT
-                        r.id
-                    FROM
-                        t#pay_source p
-                        JOIN t#raw_sber r ON ( c#real_date = dt_pay
-                                               AND   (
-                            regexp_substr(ltrim(replace(ls,' ',''),'0'),'[^?-]+',1) = c#account
-                            OR    ls = c#account
-                        )
-                                               AND   sum_pl = c#summa
-                                               AND   c#comment = fio
-                                               AND   period = c#period
-                                               AND   c#pay_num = n_oper )
-                    WHERE
-                        c#cod_rkc = 51
-                )
-            MINUS
-            SELECT
-                c#account,
-                c#real_date,
-                c#summa,
-                c#period,
-                c#cod_rkc,
-                TO_CHAR(c#pay_num),
-                c#file_id,
-                c#comment,
-                c#plat
-            FROM
-                t#pay_source
-            WHERE
-                c#file_id =-1;
-
-        COMMIT;
-    END;
-
 ------------------------------------------
 
     PROCEDURE calc_spec_prihod_vozvrat
@@ -290,10 +95,10 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END;
 ------------------------------------------
 
-    PROCEDURE del_doubles_sber
+    PROCEDURE del_doubles_dbf
         AS
     BEGIN
-        DELETE FROM t#raw_sber
+        DELETE FROM t#raw_dbf
         WHERE
             id IN (
                 SELECT
@@ -308,84 +113,16 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
                                 osb,
                                 filial,
                                 cashier,
-                                period,
                                 n_oper,
-                                ls
-                                ORDER BY
-                                    row_time
-                            ) num
-                        FROM
-                            t#raw_sber s
-                    )
-                WHERE
-                    num <> 1
-            );
-
-        COMMIT;
-    END;
-------------------------------------------
-
-    PROCEDURE del_doubles_tkpb
-        AS
-    BEGIN
-        DELETE FROM t#raw_tkpb
-        WHERE
-            id IN (
-                SELECT
-                    id
-                FROM
-                    (
-                        SELECT
-                            s.*,
-                            ROW_NUMBER() OVER(
-                                PARTITION BY file_name,
-                                dt_pay,
-                                filial,
-                                sum_pl,
-                                fio,
                                 ls,
                                 period,
-                                file_name
+                                vid_oper,
+                                file_id
                                 ORDER BY
                                     row_time
                             ) num
                         FROM
-                            t#raw_tkpb s
-                    )
-                WHERE
-                    num <> 1
-            );
-
-        COMMIT;
-    END;
-
-------------------------------------------
-
-    PROCEDURE del_doubles_post
-        AS
-    BEGIN
-        DELETE FROM t#raw_post
-        WHERE
-            id IN (
-                SELECT
-                    id
-                FROM
-                    (
-                        SELECT
-                            s.*,
-                            ROW_NUMBER() OVER(
-                                PARTITION BY file_name,
-                                dt_pay,
-                                osb,
-                                filial,
-                                cashier,
-                                n_oper,
-                                ls
-                                ORDER BY
-                                    row_time
-                            ) num
-                        FROM
-                            t#raw_post s
+                            t#raw_dbf s
                     )
                 WHERE
                     num <> 1
@@ -394,7 +131,6 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         COMMIT;
     END;
 ------------------------------------------
-
     PROCEDURE del_doubles_1c
         AS
     BEGIN
@@ -427,56 +163,6 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END;
 ------------------------------------------
 
-    PROCEDURE del_doubles_online
-        AS
-    BEGIN
-        DELETE FROM t#raw_online
-        WHERE
-            id IN (
-                SELECT
-                    id
-                FROM
-                    (
-                        SELECT
-                            s.*,
-                            ROW_NUMBER() OVER(
-                                PARTITION BY file_name,
-                                dt_pay,
-                                osb,
-                                filial,
-                                cashier,
-                                n_oper,
-                                ls
-                                ORDER BY
-                                    row_time
-                            ) num
-                        FROM
-                            t#raw_online s
-                    )
-                WHERE
-                    num <> 1
-            );
-
-        COMMIT;
-    END;
-------------------------------------------
-
-    PROCEDURE after_load_sber
-        AS
-    BEGIN
-        del_doubles_sber ();
-        load_sber_to_paysource ();
-    END after_load_sber;
-------------------------------------------
-
-    PROCEDURE after_load_post
-        AS
-    BEGIN
-        del_doubles_post ();
-        load_post_to_paysource ();
-    END after_load_post;
-------------------------------------------
-
     PROCEDURE after_load_1c
         AS
     BEGIN
@@ -485,20 +171,12 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END after_load_1c;
 ------------------------------------------
 
-    PROCEDURE after_load_online
+    PROCEDURE after_load_dbf
         AS
     BEGIN
-        del_doubles_online ();
-        load_online_to_paysource ();
-    END after_load_online;
-------------------------------------------
-
-    PROCEDURE after_load_tkpb
-        AS
-    BEGIN
-        del_doubles_tkpb ();
-        load_tkpb_to_paysource ();
-    END after_load_tkpb;
+        del_doubles_dbf();
+        load_raw_to_paysource();
+    END after_load_dbf;
 
 END p#raw;
 /
