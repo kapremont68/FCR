@@ -51,7 +51,6 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
                         )
                                               AND   sum_pl = c#summa
                                               AND   p.c#file_id >= 0
-                                              AND   c#comment = fio
                                               AND   period = c#period
                                               AND   nvl(c#pay_num,0) = nvl(n_oper,0) )
                 )
