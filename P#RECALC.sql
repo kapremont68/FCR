@@ -6,6 +6,8 @@ CREATE OR REPLACE PACKAGE P#RECALC AS
 -- форс-пересчет всех счетов дома + накопления самого дома
     PROCEDURE FORCE_RECALC_HOUSE(p_HOUSE_ID NUMBER);
     
+    PROCEDURE FORCE_RECALC_HOUSE_ONLY(p_HOUSE_ID NUMBER);
+
     
     PROCEDURE RESET_PAY_SOURCE_FOR_ACC(p_ACC_ID NUMBER);
     
@@ -14,20 +16,32 @@ END P#RECALC;
 /
 
 
-CREATE OR REPLACE PACKAGE BODY P#RECALC AS
+CREATE OR REPLACE PACKAGE BODY p#recalc AS
 
-  PROCEDURE FORCE_RECALC_ACC(p_ACC_ID NUMBER, p_RECALC_HOUSE VARCHAR2 DEFAULT 'Y') AS
-    a_HOUSE_ID NUMBER;
+    PROCEDURE force_recalc_acc (
+        p_acc_id         NUMBER,
+        p_recalc_house   VARCHAR2 DEFAULT 'Y'
+    ) AS
+        a_house_id   NUMBER;
 --    maxMN NUMBER;
-  BEGIN
-    DO#RECALC_ACCOUNT(null,to_date('01.06.2014','dd.mm.yyyy'),p_ACC_ID);
+    BEGIN
+        do#recalc_account(NULL,TO_DATE('01.06.2014','dd.mm.yyyy'),p_acc_id);
+        p#total.update_total_account(p_acc_id);
+        IF
+            p_recalc_house = 'Y'
+        THEN
+            SELECT
+                house_id
+            INTO
+                a_house_id
+            FROM
+                v_house_room_acc
+            WHERE
+                account_id = p_acc_id
+                AND   ROWNUM < 2;
 
-    P#TOTAL.UPDATE_TOTAL_ACCOUNT (p_ACC_ID) ;  
-    
-    if p_RECALC_HOUSE = 'Y' then
-        select house_id into a_HOUSE_ID from V_HOUSE_ROOM_ACC where account_id = p_ACC_ID and rownum < 2;
-        P#TOTAL.UPDATE_TOTAL_HOUSE(a_HOUSE_ID);    
-    end if;
+            p#total.update_total_house(a_house_id);
+        END IF;
 
 
 --    maxMN := P#UTILS.GET#OPEN_MN()+1;
@@ -40,44 +54,63 @@ CREATE OR REPLACE PACKAGE BODY P#RECALC AS
 --    EXECUTE IMMEDIATE 'alter trigger TR#STORE#WARD enable';
 --    EXECUTE IMMEDIATE 'alter trigger TR#STORAGE#WARD enable';
 
-    commit;
-
-  END FORCE_RECALC_ACC;
-
-------------------------------------------------------------------------
-  PROCEDURE FORCE_RECALC_HOUSE(p_HOUSE_ID NUMBER) AS
-  BEGIN
-    
-    for accItem in (select ACCOUNT_ID from V_HOUSE_ROOM_ACC where HOUSE_ID = p_HOUSE_ID) loop
-        FORCE_RECALC_ACC(accItem.ACCOUNT_ID, 'N');    
-    end loop;
-       
-    P#TOTAL.UPDATE_TOTAL_HOUSE(p_HOUSE_ID) ;  
-
-  END FORCE_RECALC_HOUSE;
+        COMMIT;
+    END force_recalc_acc;
 
 ------------------------------------------------------------------------
 
-    PROCEDURE RESET_PAY_SOURCE_FOR_ACC(p_ACC_ID NUMBER) AS
+    PROCEDURE force_recalc_house (
+        p_house_id NUMBER
+    )
+        AS
     BEGIN
-        update T#PAY_SOURCE set
-            C#ACC_ID_CLOSE = null,
-            C#ACC_ID = null,
-            C#ACC_ID_TTER = null,
-            C#OPS_ID = null
-        where
-            coalesce(C#ACC_ID,C#ACC_ID_TTER,C#ACC_ID_CLOSE) = p_ACC_ID
-        ;
-        
+        FOR accitem IN (
+            SELECT
+                account_id
+            FROM
+                v_house_room_acc
+            WHERE
+                house_id = p_house_id
+        ) LOOP
+            force_recalc_acc(accitem.account_id,'N');
+        END LOOP;
+
+        p#total.update_total_house(p_house_id);
+    END force_recalc_house;
+
+------------------------------------------------------------------------
+
+    PROCEDURE reset_pay_source_for_acc (
+        p_acc_id NUMBER
+    )
+        AS
+    BEGIN
+        UPDATE t#pay_source
+            SET
+                c#acc_id_close = NULL,
+                c#acc_id = NULL,
+                c#acc_id_tter = NULL,
+                c#ops_id = NULL
+        WHERE
+            coalesce(c#acc_id,c#acc_id_tter,c#acc_id_close) = p_acc_id;
+
         EXECUTE IMMEDIATE 'alter trigger TR#OP#STOP_MOD disable';
         EXECUTE IMMEDIATE 'alter trigger TR#OP_VD#STOP_MOD disable';
-        delete from t#op where C#ACCOUNT_ID = p_ACC_ID;
+        DELETE FROM t#op WHERE
+            c#account_id = p_acc_id;
+
         EXECUTE IMMEDIATE 'alter trigger TR#OP#STOP_MOD enable';
         EXECUTE IMMEDIATE 'alter trigger TR#OP_VD#STOP_MOD enable';
-        
         COMMIT;
-        
-    END RESET_PAY_SOURCE_FOR_ACC;
+    END reset_pay_source_for_acc;
 
-END P#RECALC;
+    PROCEDURE force_recalc_house_only (
+        p_house_id NUMBER
+    )
+        AS
+    BEGIN
+        p#total.update_total_house(p_house_id);
+    END force_recalc_house_only;
+
+END p#recalc;
 /
