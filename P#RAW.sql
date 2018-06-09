@@ -174,12 +174,37 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END after_load_1c;
 ------------------------------------------
 
-    PROCEDURE after_load_dbf
-        AS
+    PROCEDURE after_load_dbf AS
+        cnt   NUMBER;
     BEGIN
         del_doubles_dbf ();
         load_raw_to_paysource ();
-        p#fcr_load_outer_data.execallfunctioncycleauto ();
+        SELECT
+            COUNT(*)
+        INTO
+            cnt
+        FROM
+            t#pay_source p
+        WHERE
+            c#ops_id IS NULL
+            AND   c#account IN (
+                SELECT
+                    c#out_num
+                FROM
+                    t#account_op
+                UNION
+                SELECT
+                    c#num
+                FROM
+                    t#account
+            )
+            AND   c#file_id < 0;
+
+        IF
+            cnt > 0
+        THEN
+            p#fcr_load_outer_data.execallfunctioncycleauto ();
+        END IF;
     END after_load_dbf;
 
 END p#raw;
