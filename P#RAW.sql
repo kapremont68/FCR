@@ -70,6 +70,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             WHERE
                 c#file_id < 0;
 
+        COMMIT;
     END;
 ------------------------------------------
 
@@ -91,6 +92,8 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         ) LOOP
             p#fcr_load_outer_data.ins#spec_prihod(rec.house_id,rec.pay_date,rec.pay_sum,rec.pay_comment);
         END LOOP;
+
+        COMMIT;
     END;
 ------------------------------------------
 
@@ -130,6 +133,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         COMMIT;
     END;
 ------------------------------------------
+
     PROCEDURE del_doubles_1c
         AS
     BEGIN
@@ -173,8 +177,9 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     PROCEDURE after_load_dbf
         AS
     BEGIN
-        del_doubles_dbf();
-        load_raw_to_paysource();
+        del_doubles_dbf ();
+        load_raw_to_paysource ();
+        p#fcr_load_outer_data.execallfunctioncycleauto ();
     END after_load_dbf;
 
 END p#raw;
