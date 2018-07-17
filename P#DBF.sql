@@ -24,7 +24,7 @@ CREATE OR REPLACE PACKAGE BODY p#dbf AS
                         SELECT
                             s.*,
                             ROW_NUMBER() OVER(
-                                PARTITION BY file_name,
+                                PARTITION BY 
                                 data_pl,
                                 summ_pl,
                                 penalty,
@@ -71,7 +71,7 @@ CREATE OR REPLACE PACKAGE BODY p#dbf AS
                 summ_pl,
                 penalty,
                 period,
-                '59',
+                cod_rkc,
                 pd_num,
                 -6,
                 file_name,

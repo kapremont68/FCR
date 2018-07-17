@@ -88,10 +88,12 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             FROM
                 t#raw_1c_v101 r
                 JOIN v4_bank_vd b ON ( r.platelshikschet = b.acc_num )
-                left join SPEC_PRIHOD S on (b.HOUSE_ID = s.ID_HOUSE and -1*r.SUMMA = S.PAY and r.data = s.DT_PAY)
+                LEFT JOIN spec_prihod s ON ( b.house_id = s.id_house
+                                             AND -1 * r.summa = s.pay
+                                             AND r.data = s.dt_pay )
             WHERE
                 b.acc_type = 2
-                and S.ID_HOUSE is null
+                AND   s.id_house IS NULL
                 AND   b.valid_tag = 'Y'
         ) LOOP
             p#fcr_load_outer_data.ins#spec_prihod(rec.house_id,rec.pay_date,rec.pay_sum,rec.pay_comment);
@@ -116,12 +118,14 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
                                        AND r.naznachenieplatega LIKE '%МКД('
                 || b.house_id
                 || ')%' )
-                left join SPEC_PRIHOD S on (b.HOUSE_ID = s.ID_HOUSE and r.SUMMA = S.PAY and r.data = s.DT_PAY)
+                LEFT JOIN spec_prihod s ON ( b.house_id = s.id_house
+                                             AND r.summa = s.pay
+                                             AND r.data = s.dt_pay )
             WHERE
                 b.acc_type = 2
                 AND   b.valid_tag = 'Y'
-                and S.ID_HOUSE is null
-                and r.data > date '2018-04-01' -- до этой даты спецприход грузился обратным парсингом и даты платежей могут не совпадать
+                AND   s.id_house IS NULL
+                AND   r.data > DATE '2018-04-01' -- до этой даты спецприход грузился обратным парсингом и даты платежей могут не совпадать
         ) LOOP
             p#fcr_load_outer_data.ins#spec_prihod(rec.house_id,rec.pay_date,rec.pay_sum,rec.pay_comment);
         END LOOP;
@@ -213,6 +217,12 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     BEGIN
         del_doubles_dbf ();
         load_raw_to_paysource ();
+    END after_load_dbf;
+-----------------------------------------------------------
+
+    PROCEDURE do_posting AS
+        cnt   NUMBER;
+    BEGIN
         SELECT
             COUNT(*)
         INTO
@@ -239,7 +249,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         THEN
             p#fcr_load_outer_data.execallfunctioncycleauto ();
         END IF;
-    END after_load_dbf;
+    END;
 -----------------------------------------------------------
 
     PROCEDURE after_autoload
@@ -247,7 +257,8 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     BEGIN
         after_load_dbf;
         after_load_1c;
-        p#dbf.after_autoload();
+        p#dbf.after_autoload ();
+        do_posting ();
     END after_autoload;
 
 END p#raw;
