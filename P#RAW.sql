@@ -1,11 +1,15 @@
 CREATE OR REPLACE PACKAGE p#raw AS
-
     PROCEDURE after_load_1c;
 
     PROCEDURE after_load_dbf;
 
     PROCEDURE after_autoload;
-    
+
+    PROCEDURE set_raw_1c_acc_num (
+        p_raw_1c_id NUMBER,
+        p_acc_num VARCHAR2
+    );
+
 END p#raw;
 /
 
@@ -203,12 +207,70 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END;
 ------------------------------------------
 
+    PROCEDURE load_1c_raw_250_to_paysource
+        AS
+    BEGIN
+        INSERT INTO t#pay_source (
+            c#account,
+            c#real_date,
+            c#summa,
+            c#period,
+            c#cod_rkc,
+            c#pay_num,
+            c#file_id,
+            c#comment,
+            c#plat
+        )
+            SELECT
+                TRIM(acc_num),
+                data,
+                summa,
+                TO_CHAR(data,'MMYY'),
+                '55',
+                nomer,
+                -7,
+                'RAW_1C_ID:'
+                || id
+                || ' '
+                || naznachenieplatega,
+                platelshik1
+            FROM
+                t#raw_1c_v101 t
+            WHERE
+                acc_num IS NOT NULL
+                AND   id NOT IN (
+                    SELECT
+                        r.id
+                    FROM
+                        t#pay_source p
+                        JOIN t#raw_1c_v101 r ON ( c#real_date = data
+                                                  AND   TRIM(acc_num) = c#account
+                                                  AND   summa = c#summa
+                                                  AND   p.c#file_id >= 0
+                                                  AND   TO_CHAR(data,'MMYY') = c#period
+                                                  AND   nvl(c#pay_num,0) = nvl(nomer,0) )
+                )
+                AND   id NOT IN (
+                    SELECT
+                        r.id
+                    FROM
+                        t#raw_1c_v101 r
+                        JOIN t#pay_source p ON ( p.c#comment LIKE 'RAW_1C_ID:'
+                        || r.id
+                        || '%' )
+                );
+
+        COMMIT;
+    END;
+------------------------------------------
+
     PROCEDURE after_load_1c
         AS
     BEGIN
         del_doubles_1c ();
         calc_spec_prihod_vozvrat ();
         calc_spec_prihod ();
+        load_1c_raw_250_to_paysource ();
     END after_load_1c;
 ------------------------------------------
 
@@ -260,6 +322,23 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         p#dbf.after_autoload ();
         do_posting ();
     END after_autoload;
+
+-----------------------------------------------------------
+
+    PROCEDURE set_raw_1c_acc_num (
+        p_raw_1c_id NUMBER,
+        p_acc_num VARCHAR2
+    )
+        AS
+    BEGIN
+        UPDATE t#raw_1c_v101
+            SET
+                acc_num = p_acc_num
+        WHERE
+            id = p_raw_1c_id;
+
+        COMMIT;
+    END set_raw_1c_acc_num;
 
 END p#raw;
 /
