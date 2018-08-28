@@ -77,7 +77,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         a#cod_rkc      VARCHAR2,
         a#comment      VARCHAR2
     ) IS
-        a#hash    VARCHAR2(100);
+        a#hash    VARCHAR2(1000);
         a#exist   INTEGER;
     BEGIN
         a#hash := a#person_id
@@ -151,7 +151,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         a#pl_date   IN DATE,
         a#comm      VARCHAR2
     ) IS
-        a#hash    VARCHAR2(100);
+        a#hash    VARCHAR2(1000);
         a#exist   INTEGER;
     BEGIN
         a#hash := TO_CHAR(a#pl_sum)

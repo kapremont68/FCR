@@ -138,6 +138,32 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END;
 ------------------------------------------
 
+    PROCEDURE calc_kotel_prihod
+        AS
+    BEGIN
+        FOR rec IN (
+            SELECT
+                summa pay_sum,
+                data pay_date,
+                dokument
+                || ' '
+                || nomer
+                || ' - '
+                || naznachenieplatega pay_comment
+            FROM
+                t#raw_1c_v101
+            WHERE
+                platelshikschet = '40703810302000000250'
+                AND   poluchatelschet = '40604810502000000308'
+                AND   data > DATE '2018-04-01' -- до этой даты спецприход грузился обратным парсингом и даты платежей могут не совпадать
+        ) LOOP
+            p#fcr_load_outer_data.ins#kotel_other_prih(rec.pay_sum,rec.pay_date,rec.pay_comment);
+        END LOOP;
+
+        COMMIT;
+    END;
+------------------------------------------
+
     PROCEDURE del_doubles_dbf
         AS
     BEGIN
@@ -270,6 +296,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
         del_doubles_1c ();
         calc_spec_prihod_vozvrat ();
         calc_spec_prihod ();
+        calc_kotel_prihod ();
         load_1c_raw_250_to_paysource ();
     END after_load_1c;
 ------------------------------------------
