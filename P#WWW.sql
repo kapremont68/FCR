@@ -12,12 +12,15 @@ CREATE OR REPLACE PACKAGE p#www AS
         p_period VARCHAR2
     ) RETURN SYS_REFCURSOR;
 
+    FUNCTION get#kvit_delivery_address (
+        p_acc_id NUMBER
+    ) RETURN VARCHAR2;
+
 END p#www;
 /
 
 
 CREATE OR REPLACE PACKAGE BODY p#www AS
-
     FUNCTION get#acc_id_by_any_acc_num (
         p_acc_num VARCHAR2
     ) RETURN NUMBER AS
@@ -164,6 +167,7 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
 
         RETURN res;
     END get#acc_balance;
+-------------------------------------------------------------------------
 
     FUNCTION get#info_for_kvit (
         p_acc_num VARCHAR2,
@@ -180,14 +184,28 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
                     ELSE ', пом. '
                 END
             || t.flat_num addr,
-            r.c#area_val area_val,
+            TO_CHAR(r.c#area_val) area_val,
             p#tools.get_person_name_by_id(l.c#person_id) person_name,
-            p#utils.get#tarif(t.account_id,TO_DATE(p_period,'mm.yyyy') ) tarif,
+            TO_CHAR(p#utils.get#tarif(t.account_id,TO_DATE(p_period,'mm.yyyy') ) ) tarif,
             p#tools.period_in_words(t.period) period,
-            charge_sum_mn charge_sum_mn,
-            charge_sum_total - charge_sum_mn charge_sum_total,
-            pay_sum_total - pay_sum_mn pay_sum_total,
-            dolg_sum_total + pay_sum_mn - charge_sum_mn dolg_sum_total
+            TO_DATE('01.'
+            || t.period,'dd.mm.yyyy') period_full,
+            TO_CHAR(charge_sum_mn) charge_sum_mn,
+            TO_CHAR(charge_sum_total - charge_sum_mn) charge_sum_total,
+            TO_CHAR(pay_sum_total - pay_sum_mn) pay_sum_total,
+            TO_CHAR( (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) ) dolg_sum_total,
+            TO_CHAR(
+                CASE
+                    WHEN(charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) >= 0 THEN charge_sum_mn
+                    ELSE greatest(0,charge_sum_mn + (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) )
+                END
+            ) to_pay_mn,
+            TO_CHAR(
+                CASE
+                    WHEN(charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) >= 0 THEN charge_sum_mn
+                    ELSE greatest(0,charge_sum_mn + (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) )
+                END
+            + greatest(0, (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) ) ) to_pay_total
                      FROM
             t#total_account t
             JOIN mv_houses_adreses ha ON ( t.house_id = ha.house_id )
@@ -204,6 +222,32 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
 
         RETURN res;
     END get#info_for_kvit;
+    
+-------------------------------------------------------------------
 
-END p#www;
+FUNCTION get#kvit_delivery_address (
+    p_acc_id NUMBER
+) RETURN VARCHAR2 AS
+    addr VARCHAR2(500);
+    BEGIN 
+    SELECT   trim( nvl2(c#post_code,c#post_code|| ', ','')
+            || nvl2 ( t.c#1_text, c#1_text || ' ', '') || t.c#2_text) address_d 
+    into addr
+    FROM
+        t#person_addr t
+    WHERE
+        c#person_id =
+        (
+            SELECT
+                c#person_id
+            FROM
+                v#acc_last
+            WHERE
+                c#account_id = p_acc_id
+                AND   ROWNUM < 2
+        );
+
+    RETURN addr;
+    end get#kvit_delivery_address;
+end p#www;
 /
