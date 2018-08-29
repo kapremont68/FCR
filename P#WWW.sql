@@ -37,6 +37,21 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
             c#num = p_acc_num;
 
         RETURN ret_acc_id;
+    EXCEPTION
+        WHEN no_data_found THEN
+            BEGIN
+                SELECT
+                    c#account_id
+                INTO
+                    ret_acc_id
+                FROM
+                    v#acc_last
+                WHERE
+                    c#out_num = p_acc_num
+                    AND   ROWNUM < 2;
+
+                RETURN ret_acc_id;
+            END;
     END get#acc_id_by_any_acc_num;
 
 --------------------------------------
