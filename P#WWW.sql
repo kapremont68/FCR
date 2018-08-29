@@ -21,37 +21,25 @@ END p#www;
 
 
 CREATE OR REPLACE PACKAGE BODY p#www AS
+
     FUNCTION get#acc_id_by_any_acc_num (
         p_acc_num VARCHAR2
     ) RETURN NUMBER AS
         ret_acc_id   NUMBER;
     BEGIN
         SELECT
-            c#account_id
+            c#id
         INTO
             ret_acc_id
         FROM
-            t#account_op
+            t#account
         WHERE
-            c#out_num = p_acc_num;
+            c#num = p_acc_num;
 
         RETURN ret_acc_id;
-    EXCEPTION
-        WHEN no_data_found THEN
-            BEGIN
-                SELECT
-                    c#id
-                INTO
-                    ret_acc_id
-                FROM
-                    t#account
-                WHERE
-                    c#num = p_acc_num;
-
-                RETURN ret_acc_id;
-            END;
-            RETURN ret_acc_id;
     END get#acc_id_by_any_acc_num;
+
+--------------------------------------
 
     FUNCTION get#acc_balance (
         p_acc_num VARCHAR2
@@ -205,7 +193,16 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
                     WHEN(charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) >= 0 THEN charge_sum_mn
                     ELSE greatest(0,charge_sum_mn + (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) )
                 END
-            + greatest(0, (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) ) ) to_pay_total
+            + greatest(0, (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) ) ) to_pay_total,
+            coalesce(p#www.get#kvit_delivery_address(t.account_id),p#utils.get_obj#house_postamt(t.house_id).f#code
+            || ', '
+            || ha.addr
+            ||
+                CASE
+                    WHEN r.c#valid_tag = 'Y' THEN ', кв. '
+                    ELSE ', пом. '
+                END
+            || t.flat_num) delivery_addr
                      FROM
             t#total_account t
             JOIN mv_houses_adreses ha ON ( t.house_id = ha.house_id )
@@ -225,29 +222,30 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
     
 -------------------------------------------------------------------
 
-FUNCTION get#kvit_delivery_address (
-    p_acc_id NUMBER
-) RETURN VARCHAR2 AS
-    addr VARCHAR2(500);
-    BEGIN 
-    SELECT   trim( nvl2(c#post_code,c#post_code|| ', ','')
-            || nvl2 ( t.c#1_text, c#1_text || ' ', '') || t.c#2_text) address_d 
-    into addr
-    FROM
-        t#person_addr t
-    WHERE
-        c#person_id =
-        (
-            SELECT
-                c#person_id
-            FROM
-                v#acc_last
-            WHERE
-                c#account_id = p_acc_id
-                AND   ROWNUM < 2
-        );
+    FUNCTION get#kvit_delivery_address (
+        p_acc_id NUMBER
+    ) RETURN VARCHAR2 AS
+        v_addr   VARCHAR2(500);
+    BEGIN
+        SELECT
+            addr
+        INTO
+            v_addr
+        FROM
+            v#person_addr
+        WHERE
+            person_id = (
+                SELECT
+                    c#person_id
+                FROM
+                    v#acc_last
+                WHERE
+                    c#account_id = p_acc_id
+                    AND   ROWNUM < 2
+            );
 
-    RETURN addr;
-    end get#kvit_delivery_address;
-end p#www;
+        RETURN v_addr;
+    END get#kvit_delivery_address;
+
+END p#www;
 /
