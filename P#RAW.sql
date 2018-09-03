@@ -15,7 +15,6 @@ END p#raw;
 
 
 CREATE OR REPLACE PACKAGE BODY p#raw AS
-
 ------------------------------------------
 
     PROCEDURE load_raw_to_paysource
@@ -185,8 +184,8 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
                                 n_oper,
                                 ls,
                                 period,
-                                vid_oper,
-                                file_id
+                                vid_oper
+--                               ,file_id
                                 ORDER BY
                                     row_time
                             ) num
@@ -233,7 +232,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
     END;
 ------------------------------------------
 
-    PROCEDURE load_1c_raw_250_to_paysource
+    PROCEDURE load_1c_raw_250_to_paysource -- грузятся платежи только с расставлеными вручную номерами счетов
         AS
     BEGIN
         INSERT INTO t#pay_source (
