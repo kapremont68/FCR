@@ -90,7 +90,7 @@ CREATE OR REPLACE PACKAGE BODY p#dbf AS
                             OR    ls = c#account
                         )
                                               AND   summ_pl = c#summa
-                                              AND   p.c#file_id >= 0
+                                              AND   ((p.c#file_id >= 0) or (p.c#file_id = -6))
                                               AND   period = c#period
                                               AND   nvl(c#pay_num,0) = nvl(pd_num,0) )
                 )
