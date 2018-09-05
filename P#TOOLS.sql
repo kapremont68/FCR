@@ -457,37 +457,37 @@ CREATE OR REPLACE PACKAGE BODY p#tools AS
     PROCEDURE add_new_erc_accounts
         AS
     BEGIN
-        FOR new_acc_rec IN (
-            SELECT DISTINCT
-                c#account_id account_id,
-                TO_DATE(per_beg
-                || '01','yyyymmdd') new_date,
-                new_account_num
-            FROM
-                v#erc_new_accounts
-                JOIN t#account_op ON ( old_account_num = c#out_num )
-            WHERE
-                c#out_num IN (
-                    SELECT
-                        c#out_num
-                    FROM
-                        t#account_op
-                    GROUP BY
-                        c#out_num
-                    HAVING
-                        COUNT(*) = 1
-                )
-        ) LOOP
-            BEGIN
-                p#fcr.ins#account_op(a#account_id => new_acc_rec.account_id,a#date => get_new_rkc_date(new_acc_rec.account_id,new_acc_rec.new_date),a#out_proc_id
-=> 1,a#out_num => new_acc_rec.new_account_num,a#note => 'ADD_NEW_ERC_ACCOUNTS: '
-                || SYSDATE);
-
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-        END LOOP;
+--        FOR new_acc_rec IN (
+--            SELECT DISTINCT
+--                c#account_id account_id,
+--                TO_DATE(per_beg
+--                || '01','yyyymmdd') new_date,
+--                new_account_num
+--            FROM
+--                v#erc_new_accounts
+--                JOIN t#account_op ON ( old_account_num = c#out_num )
+--            WHERE
+--                c#out_num IN (
+--                    SELECT
+--                        c#out_num
+--                    FROM
+--                        t#account_op
+--                    GROUP BY
+--                        c#out_num
+--                    HAVING
+--                        COUNT(*) = 1
+--                )
+--        ) LOOP
+--            BEGIN
+--                p#fcr.ins#account_op(a#account_id => new_acc_rec.account_id,a#date => get_new_rkc_date(new_acc_rec.account_id,new_acc_rec.new_date),a#out_proc_id
+--=> 1,a#out_num => new_acc_rec.new_account_num,a#note => 'ADD_NEW_ERC_ACCOUNTS: '
+--                || SYSDATE);
+null;
+--            EXCEPTION
+--                WHEN OTHERS THEN
+--                    NULL;
+--            END;
+--        END LOOP;
     END add_new_erc_accounts;
 
     PROCEDURE add_new_fcr_accounts
