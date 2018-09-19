@@ -104,6 +104,7 @@ CREATE OR REPLACE PACKAGE BODY p#recalc AS
         COMMIT;
     END reset_pay_source_for_acc;
 
+------------------------------------------------------------------------
     PROCEDURE force_recalc_house_only (
         p_house_id NUMBER
     )
@@ -111,6 +112,7 @@ CREATE OR REPLACE PACKAGE BODY p#recalc AS
     BEGIN
         p#total.update_total_house(p_house_id);
     END force_recalc_house_only;
+------------------------------------------------------------------------
 
 END p#recalc;
 /

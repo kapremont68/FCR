@@ -585,7 +585,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             FROM
                 fcr.t#ops_kind ok
             WHERE
-                ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'00') );
+                ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'00') )
+                OR   ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'000') );
 
             SELECT
                 MAX(a.c#work_id),
@@ -599,8 +600,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                        -- ,W.C#WORKS_ID
                        ,
                         w.c#id AS c#work_id
-                       --  ,W_VD.C#TAR_TYPE_TAG
-                       --  ,W_VD.C#TAR_VAL
+                       -- ,W_VD.C#TAR_TYPE_TAG
+                       -- ,W_VD.C#TAR_VAL
                        ,
                         d_vd.c#doer_id,
                         ROW_NUMBER() OVER(
@@ -1256,8 +1257,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                        -- ,W.C#WORKS_ID
                        ,
                         w.c#id AS c#work_id
-                       --  ,W_VD.C#TAR_TYPE_TAG
-                       --  ,W_VD.C#TAR_VAL
+                       -- ,W_VD.C#TAR_TYPE_TAG
+                       -- ,W_VD.C#TAR_VAL
                        ,
                         d_vd.c#doer_id,
                         ROW_NUMBER() OVER(
@@ -1913,8 +1914,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                        -- ,W.C#WORKS_ID
                        ,
                         w.c#id AS c#work_id
-                       --  ,W_VD.C#TAR_TYPE_TAG
-                       --  ,W_VD.C#TAR_VAL
+                       -- ,W_VD.C#TAR_TYPE_TAG
+                       -- ,W_VD.C#TAR_VAL
                        ,
                         d_vd.c#doer_id,
                         ROW_NUMBER() OVER(
@@ -2539,6 +2540,25 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             END;
         END LOOP;
 
+        FOR recalc_house_rec IN (
+            SELECT DISTINCT
+                house_id
+            FROM
+                v_house_room_acc
+            WHERE
+                account_id IN (
+                    SELECT
+                        account_id
+                    FROM
+                        tt#acc_for_recalc
+                )
+        ) LOOP
+            BEGIN
+                p#total.update_total_house(recalc_house_rec.house_id);
+                COMMIT;
+            END;
+        END LOOP;
+
     END;
 
     PROCEDURE execallfunctioncycleauto
@@ -2572,7 +2592,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                         t#pay_source
                     WHERE
                         c#ops_id IS NULL
-                        and c#file_id < 0
+                        AND   c#file_id < 0
                 );
 
         COMMIT;
@@ -2613,6 +2633,26 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 COMMIT;
             END;
         END LOOP;
+
+        FOR recalc_house_rec IN (
+            SELECT DISTINCT
+                house_id
+            FROM
+                v_house_room_acc
+            WHERE
+                account_id IN (
+                    SELECT
+                        account_id
+                    FROM
+                        tt#acc_for_recalc
+                )
+        ) LOOP
+            BEGIN
+                p#total.update_total_house(recalc_house_rec.house_id);
+                COMMIT;
+            END;
+        END LOOP;
+
 
     END;
 
