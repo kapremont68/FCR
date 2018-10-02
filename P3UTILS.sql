@@ -26,69 +26,90 @@ END P3UTILS;
 
 
 CREATE OR REPLACE PACKAGE BODY p3utils AS
+-----------------------------------
 
-    FUNCTION get_job_summa ( p_job_id   NUMBER DEFAULT NULL ) RETURN NUMBER AS
+    FUNCTION get_job_summa (
+        p_job_id NUMBER DEFAULT NULL
+    ) RETURN NUMBER AS
         r_summa   NUMBER;
     BEGIN
-        SELECT SUM(c#sum)
-        INTO r_summa
-        FROM t3_pay
-        WHERE c#job_id = p_job_id;
+        SELECT
+            SUM(c#sum)
+        INTO
+            r_summa
+        FROM
+            t3_pay
+        WHERE
+            c#job_id = p_job_id;
+
         RETURN r_summa;
     END get_job_summa;
+-----------------------------------
 
-  FUNCTION get_house_summa(p_HOUSE_ID NUMBER DEFAULT NULL) RETURN NUMBER AS
+    FUNCTION get_house_summa (
+        p_house_id NUMBER DEFAULT NULL
+    ) RETURN NUMBER AS
         r_summa   NUMBER;
     BEGIN
-        SELECT SUM(c#sum)
-            INTO r_summa
-        from 
-            T3_PAY P
-            join T3_JOBS J on (P.C#JOB_ID = J.C#ID)
-        where
-            c#HOUSE_ID = p_HOUSE_ID;
-        RETURN r_summa;
-  END get_house_summa;
+        SELECT
+            SUM(c#sum)
+        INTO
+            r_summa
+        FROM
+            t3_pay p
+            JOIN t3_jobs j ON ( p.c#job_id = j.c#id )
+        WHERE
+            c#house_id = p_house_id;
 
-  FUNCTION LST#HOUSE_BALANCE(p_HOUSE_ID NUMBER) RETURN sys_refcursor AS
-    res sys_refcursor;
-  BEGIN
-    OPEN res FOR
-        with
-        tran as (
+        RETURN r_summa;
+    END get_house_summa;
+-----------------------------------
+
+    FUNCTION lst#house_balance (
+        p_house_id NUMBER
+    ) RETURN SYS_REFCURSOR AS
+        res   SYS_REFCURSOR;
+    BEGIN
+        OPEN res FOR WITH tran AS (
             SELECT
-                C#HOUSE_ID HOUSE_ID,
-                sum(c#sum) TRANSFER_SUM_TOTAL
+                c#house_id house_id,
+                SUM(c#sum) transfer_sum_total
             FROM
-                T4_TRANSFER P
-            where
-                C#HOUSE_ID = p_HOUSE_ID
-            group by 
-                C#HOUSE_ID
-        )
-        select
-            V.HOUSE_ID ,
-            MN ,
-            PERIOD ,
-            CHARGE_SUM_TOTAL ,
-            PAY_SUM_TOTAL ,
-            PENI_SUM_TOTAL ,
-            DOLG_SUM_TOTAL ,
-            JOB_SUM_TOTAL ,
-            OWNERS_JOB_SUM_TOTAL ,
-            GOS_JOB_SUM_TOTAL ,
-            BALANCE_SUM_TOTAL,
-            TRANSFER_SUM_TOTAL,
-            P#TOOLS.GET_HOUSE_BALANCE_2043(p_HOUSE_ID) BALANCE_2043
-        from
-            V3_HOUSE_BALANCE V
-            left join tran on (V.HOUSE_ID = tran.HOUSE_ID)
-        where
-            V.HOUSE_ID = p_HOUSE_ID
-            and MN = (select max(MN) from V3_HOUSE_BALANCE where HOUSE_ID = p_HOUSE_ID)
-        ;
-    RETURN res;
-  END LST#HOUSE_BALANCE;
+                t4_transfer p
+            WHERE
+                c#house_id = p_house_id
+            GROUP BY
+                c#house_id
+        ) SELECT
+            v.house_id,
+            mn,
+            period,
+            charge_sum_total,
+            pay_sum_total,
+            peni_sum_total,
+            dolg_sum_total,
+            job_sum_total,
+            owners_job_sum_total,
+            gos_job_sum_total,
+            balance_sum_total,
+            transfer_sum_total,
+            p#tools.get_house_balance_2043(p_house_id) balance_2043
+          FROM
+            v3_house_balance v
+            LEFT JOIN tran ON ( v.house_id = tran.house_id )
+          WHERE
+            v.house_id = p_house_id
+            AND   mn = (
+                SELECT
+                    MAX(mn)
+                FROM
+                    v3_house_balance
+                WHERE
+                    house_id = p_house_id
+            );
+
+        RETURN res;
+    END lst#house_balance;
 
 --  FUNCTION get_jobs_txt(p_HOUSE_ID NUMBER DEFAULT NULL) RETURN NVARCHAR2 AS
 --    JOBS_TXT VARCHAR2(500);
@@ -114,201 +135,257 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
 --    end;    
 --    RETURN NVL(JOBS_TXT,'');
 --  END get_jobs_txt;
+-----------------------------------
 
-  FUNCTION get_jobs_txt(p_HOUSE_ID NUMBER DEFAULT NULL, p_DATE_BEG DATE, p_DATE_END DATE) RETURN NVARCHAR2 AS
-    JOBS_TXT VARCHAR2(5000);
-  BEGIN
-    select 
-        LISTAGG(JOB_TYPE_NAME,'; ') WITHIN GROUP (ORDER BY JOB_TYPE_NAME) 
-    into JOBS_TXT        
-    from 
-        (select distinct
-                JOB_TYPE_NAME,
-                HOUSE_ID
-            from 
-                v3_JOBS J
-                join T3_PAY P on (P.C#JOB_ID = J.JOB_ID)
-            where 
-                HOUSE_ID = p_HOUSE_ID
-                and P.C#PAY_DATE BETWEEN p_DATE_BEG and p_DATE_END
-        )
-    group by
-        HOUSE_ID
-    ;
-    RETURN JOBS_TXT;
-  END get_jobs_txt; 
+    FUNCTION get_jobs_txt (
+        p_house_id   NUMBER DEFAULT NULL,
+        p_date_beg   DATE,
+        p_date_end   DATE
+    ) RETURN NVARCHAR2 AS
+        jobs_txt   VARCHAR2(5000);
+    BEGIN
+        SELECT
+            LISTAGG(job_type_name,
+            '; ') WITHIN GROUP(
+            ORDER BY
+                job_type_name
+            )
+        INTO
+            jobs_txt
+        FROM
+            (
+                SELECT DISTINCT
+                    job_type_name,
+                    house_id
+                FROM
+                    v3_jobs j
+                    JOIN t3_pay p ON ( p.c#job_id = j.job_id )
+                WHERE
+                    house_id = p_house_id
+                    AND   p.c#pay_date BETWEEN p_date_beg AND p_date_end
+            )
+        GROUP BY
+            house_id;
+
+        RETURN jobs_txt;
+    END get_jobs_txt; 
   
+-----------------------------------
 
-  FUNCTION get_house_plan_summa(p_HOUSE_ID NUMBER DEFAULT NULL) RETURN NUMBER AS
+    FUNCTION get_house_plan_summa (
+        p_house_id NUMBER DEFAULT NULL
+    ) RETURN NUMBER AS
         r_summa   NUMBER;
     BEGIN
-        SELECT SUM(plan_sum)
-            INTO r_summa
-        from 
-            V3_JOBS
-        where
-            HOUSE_ID = p_HOUSE_ID;
-        RETURN r_summa;
-  END get_house_plan_summa;
-
-  PROCEDURE DO#IMPORT AS
-    a_NOTE VARCHAR2(100);
-  BEGIN
-        a_NOTE := 'P3UTILS.DO#IMPORT: '||sysdate;
-        
-        delete from T3_PAY_IMPORT
-        where ROWID not in (
-          SELECT MIN(ROWID) RID
-          FROM
-            T3_PAY_IMPORT
-          GROUP BY
-            DATA_PL,
-            SUMM_PL,
-            PD_NUM,
-            INN,
-            ID_HOUSE,
-            DOGOVOR_DA,
-            DOGOVOR_NU
-        )
-        ;
-        commit;
-  
-         insert into T3_CONTRACTORS (C#INN, C#NAME)
-         select distinct
-           INN,
-           PLAT
-         from
-           T3_PAY_IMPORT I
-           left join T3_CONTRACTORS C on (I.INN = C.C#INN)
-         WHERE
-           C.C#ID is null
-         ;
-        commit;
-        
-         insert into T3_CONTRACTS (C#DATE, C#NUM, C#CONTRACT_TYPE_ID, C#CONTRACTOR_ID, C#DESCRIPTION)
-         select distinct
-           I.DOGOVOR_DA,
-           I.DOGOVOR_NU,
-           68,
-           C.C#ID,
-           a_NOTE
-         from
-           T3_PAY_IMPORT I
-           join T3_CONTRACTORS C on (I.INN = C.C#INN)
-           left join T3_CONTRACTS D on (D.C#CONTRACTOR_ID = C.C#ID and D.C#NUM = I.DOGOVOR_NU and D.C#DATE = I.DOGOVOR_DA)
-         WHERE
-           D.C#ID is null
-         ;
-        commit;
-        
-         insert into T3_JOBS (C#JOB_TYPE_ID, C#CONTRACT_ID, C#HOUSE_ID, C#NOTE)
-         select distinct
-           I.TIP_WORK,
-           D.C#ID CONTRACT_ID,
-           I.ID_HOUSE,
-           a_NOTE
-         from
-           T3_PAY_IMPORT I
-           join T3_CONTRACTORS C on (I.INN = C.C#INN)
-           join T3_CONTRACTS D on (D.C#CONTRACTOR_ID = C.C#ID and D.C#NUM = I.DOGOVOR_NU and D.C#DATE = I.DOGOVOR_DA)
-           left join T3_JOBS J on (J.C#JOB_TYPE_ID = I.TIP_WORK and J.C#CONTRACT_ID = D.C#ID and J.C#HOUSE_ID = I.ID_HOUSE)
-         WHERE
-           J.C#ID is null
-         ;
-        commit;
-        
-         insert into T3_PAY (
-           C#PAY_TYPE_ID,
-           C#SOURCE,
-           C#SUM,
-           C#JOB_ID,
-           C#INVOICE,
-           C#PAY_DATE,
-           C#NOTE
-         )
-        select distinct
-          I.TIP_PL,
-          I.SOURCE,
-          I.SUMM_PL,
-          J.C#ID,
-          I.PD_NUM,
-          I.DATA_PL,
-          I.PRIM||' ('||a_NOTE||')'
-        from
-          T3_PAY_IMPORT I
-          join T3_CONTRACTORS C on (I.INN = C.C#INN)
-          join T3_CONTRACTS D on (D.C#CONTRACTOR_ID = C.C#ID and D.C#NUM = I.DOGOVOR_NU and D.C#DATE = I.DOGOVOR_DA)
-          join T3_JOBS J on (J.C#JOB_TYPE_ID = I.TIP_WORK and J.C#CONTRACT_ID = D.C#ID and J.C#HOUSE_ID = I.ID_HOUSE)
-          left join T3_PAY P on (P.C#SUM = I.SUMM_PL and P.C#INVOICE = I.PD_NUM and P.C#PAY_DATE = I.DATA_PL)
+        SELECT
+            SUM(plan_sum)
+        INTO
+            r_summa
+        FROM
+            v3_jobs
         WHERE
-          P.C#ID is null
-        ;
-        commit;
-        
-    END DO#IMPORT;
+            house_id = p_house_id;
 
-  FUNCTION LST#HOUSES_PAYS(p_DATE_BEG DATE, p_DATE_END DATE) RETURN sys_refcursor AS
-    res sys_refcursor;
-  BEGIN
-    OPEN res FOR
-        with
-            pays as (
+        RETURN r_summa;
+    END get_house_plan_summa;
+-----------------------------------
+
+    PROCEDURE do#import AS
+        a_note   VARCHAR2(100);
+    BEGIN
+        a_note := 'P3UTILS.DO#IMPORT: '
+        || SYSDATE;
+        DELETE FROM t3_pay_import
+        WHERE
+            ROWID NOT IN (
                 SELECT
-                    HOUSE_ID,
-                    SUM(CASE WHEN PAY_SOURCE = 'OWNERS' THEN PAY_SUM ELSE 0 END) OWNERS_PAY_SUM,
-                    SUM(CASE WHEN PAY_SOURCE = 'GOS' THEN PAY_SUM ELSE 0 END) GOS_PAY_SUM,
-                    SUM(PAY_SUM) TOTAL_PAY_SUM
+                    MIN(ROWID) rid
                 FROM
-                    V3_PAY V
-                WHERE
+                    t3_pay_import
+                GROUP BY
+                    data_pl,
+                    summ_pl,
+                    pd_num,
+                    inn,
+                    id_house,
+                    dogovor_da,
+                    dogovor_nu
+            );
+
+        COMMIT;
+        INSERT INTO t3_contractors (
+            c#inn,
+            c#name
+        )
+            SELECT DISTINCT
+                inn,
+                plat
+            FROM
+                t3_pay_import i
+                LEFT JOIN t3_contractors c ON ( i.inn = c.c#inn )
+            WHERE
+                c.c#id IS NULL;
+
+        COMMIT;
+        
+        INSERT INTO t3_contracts (
+            c#date,
+            c#num,
+            c#contract_type_id,
+            c#contractor_id,
+            c#description
+        )
+            SELECT DISTINCT
+                i.dogovor_da,
+                i.dogovor_nu,
+                68,
+                c.c#id,
+                a_note
+            FROM
+                t3_pay_import i
+                JOIN t3_contractors c ON ( i.inn = c.c#inn )
+                LEFT JOIN t3_contracts d ON ( d.c#contractor_id = c.c#id
+                                              AND d.c#num = i.dogovor_nu
+                                              AND d.c#date = i.dogovor_da )
+            WHERE
+                d.c#id IS NULL;
+
+        COMMIT;
+        
+        INSERT INTO t3_jobs (
+            c#job_type_id,
+            c#contract_id,
+            c#house_id,
+            c#note
+        )
+            SELECT DISTINCT
+                i.tip_work,
+                d.c#id contract_id,
+                i.id_house,
+                a_note
+            FROM
+                t3_pay_import i
+                JOIN t3_contractors c ON ( i.inn = c.c#inn )
+                JOIN t3_contracts d ON ( d.c#contractor_id = c.c#id
+                                         AND d.c#num = i.dogovor_nu
+                                         AND d.c#date = i.dogovor_da )
+                LEFT JOIN t3_jobs j ON ( j.c#job_type_id = i.tip_work
+                                         AND j.c#contract_id = d.c#id
+                                         AND j.c#house_id = i.id_house )
+            WHERE
+                j.c#id IS NULL;
+
+        COMMIT;
+        
+        INSERT INTO t3_pay (
+            c#pay_type_id,
+            c#source,
+            c#sum,
+            c#job_id,
+            c#invoice,
+            c#pay_date,
+            c#note
+        )
+            SELECT DISTINCT
+                i.tip_pl,
+                i.source,
+                i.summ_pl,
+                j.c#id,
+                i.pd_num,
+                i.data_pl,
+                i.prim
+                || ' ('
+                || a_note
+                || ')'
+            FROM
+                t3_pay_import i
+                JOIN t3_contractors c ON ( i.inn = c.c#inn )
+                JOIN t3_contracts d ON ( d.c#contractor_id = c.c#id
+                                         AND d.c#num = i.dogovor_nu
+                                         AND d.c#date = i.dogovor_da )
+                JOIN t3_jobs j ON ( j.c#job_type_id = i.tip_work
+                                    AND j.c#contract_id = d.c#id
+                                    AND j.c#house_id = i.id_house )
+                LEFT JOIN t3_pay p ON ( p.c#sum = i.summ_pl
+                                        AND p.c#invoice = i.pd_num
+                                        AND p.c#pay_date = i.data_pl )
+            WHERE
+                p.c#id IS NULL;
+
+        COMMIT;
+    END do#import;
+-----------------------------------
+
+    FUNCTION lst#houses_pays (
+        p_date_beg DATE,
+        p_date_end DATE
+    ) RETURN SYS_REFCURSOR AS
+        res   SYS_REFCURSOR;
+    BEGIN
+        OPEN res FOR WITH pays AS (
+            SELECT
+                house_id,
+                SUM(
+                    CASE
+                        WHEN pay_source = 'OWNERS' THEN pay_sum
+                        ELSE 0
+                    END
+                ) owners_pay_sum,
+                SUM(
+                    CASE
+                        WHEN pay_source = 'GOS' THEN pay_sum
+                        ELSE 0
+                    END
+                ) gos_pay_sum,
+                SUM(pay_sum) total_pay_sum
+            FROM
+                v3_pay v
+            WHERE
 --                    (((JOB_DATE_BEGIN is not null and JOB_DATE_END is not null)
 --                        and ((p_DATE_BEG BETWEEN JOB_DATE_BEGIN and JOB_DATE_END)
 --                                or (p_DATE_END BETWEEN JOB_DATE_BEGIN and JOB_DATE_END)))
 --                    or  CONTRACT_DATE BETWEEN p_DATE_BEG AND p_DATE_END)
-                    NVL(JOB_DATE_BEGIN,CONTRACT_DATE) BETWEEN p_DATE_BEG AND p_DATE_END
-                    and CONTRACT_TYPE_NAME <> 'Зачеты'
-                    and PAY_TYPE_NAME <> 'Зачеты'
-                GROUP BY
-                    HOUSE_ID
-            )
-            ,sel1 as (
-                select
-                    P.HOUSE_ID,
-                    ADDR,
-                    OWNERS_PAY_SUM,
-                    GOS_PAY_SUM,
-                    TOTAL_PAY_SUM,
-                    ACC_TYPE,
-                    regexp_substr(ADDR, '[^ ]+', 1) RN
-                from
-                    pays P
-                    left join FCR.MV_HOUSES_ADRESES A on (A.HOUSE_ID = P.HOUSE_ID)
-                    left join FCR.V#HOUSE_ACC_TYPE T on (A.HOUSE_ID = T.HOUSE_ID)
-                order by
-                    ADDR
-            )
-            ,totals as (
-                select
-                    RN,
-                    SUM(OWNERS_PAY_SUM) RN_OWNERS_PAY_SUM,
-                    SUM(GOS_PAY_SUM) RN_GOS_PAY_SUM,
-                    SUM(TOTAL_PAY_SUM) RN_TOTAL_PAY_SUM
-                from
-                    sel1
-                group by
-                    RN
-            )
+                nvl(job_date_begin,contract_date) BETWEEN p_date_beg AND p_date_end
+                AND   contract_type_name <> 'Зачеты'
+                AND   pay_type_name <> 'Зачеты'
+            GROUP BY
+                house_id
+        ),sel1 AS (
             SELECT
-                sel1.*,
-                RN_OWNERS_PAY_SUM,
-                RN_GOS_PAY_SUM,
-                RN_TOTAL_PAY_SUM
-            from
+                p.house_id,
+                addr,
+                owners_pay_sum,
+                gos_pay_sum,
+                total_pay_sum,
+                acc_type,
+                regexp_substr(addr,'[^ ]+',1) rn
+            FROM
+                pays p
+                LEFT JOIN fcr.mv_houses_adreses a ON ( a.house_id = p.house_id )
+                LEFT JOIN fcr.v#house_acc_type t ON ( a.house_id = t.house_id )
+            ORDER BY
+                addr
+        ),totals AS (
+            SELECT
+                rn,
+                SUM(owners_pay_sum) rn_owners_pay_sum,
+                SUM(gos_pay_sum) rn_gos_pay_sum,
+                SUM(total_pay_sum) rn_total_pay_sum
+            FROM
                 sel1
-                join totals on (sel1.RN = totals.RN)
-            ;
-    RETURN res;
-  END LST#HOUSES_PAYS;
+            GROUP BY
+                rn
+        ) SELECT
+            sel1.*,
+            rn_owners_pay_sum,
+            rn_gos_pay_sum,
+            rn_total_pay_sum
+          FROM
+            sel1
+            JOIN totals ON ( sel1.rn = totals.rn );
+
+        RETURN res;
+    END lst#houses_pays;
 
 END p3utils;
 /
