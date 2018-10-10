@@ -293,10 +293,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             fcr.t#pay_source t
              WHERE
             1 = 1
-            AND   (
-                ( in_file_id =-1 )
-                OR    t.c#file_id = in_file_id
-            )
+            AND   t.c#file_id = in_file_id
             AND   t.c#acc_id IS NULL
             AND   c#ops_id IS NULL
             AND   c#account IS NOT NULL;
@@ -331,10 +328,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             fcr.t#pay_source t
              WHERE
             1 = 1
-            AND   (
-                ( in_file_id =-1 )
-                OR    t.c#file_id = in_file_id
-            )
+            AND   t.c#file_id = in_file_id
             AND   t.c#acc_id IS NULL
             AND   c#ops_id IS NULL
             AND   c#account IS NOT NULL;
@@ -383,10 +377,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                     AND   fp.c#acc_id_close IS NULL
                     AND   c#ops_id IS NULL
                   ---------------
-                    AND   (
-                        ( in_file_id =-1 )
-                        OR    fp.c#file_id = in_file_id
-                    )
+                    AND   fp.c#file_id = in_file_id
                   ---------------
                     AND   fp.c#cod_rkc IN (
                         51,
@@ -449,10 +440,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             fcr.t#pay_source t
              WHERE
             t.c#acc_id IS NOT NULL
-            AND   (
-                ( in_file_id =-1 )
-                OR    t.c#file_id = in_file_id
-            )
+            AND   t.c#file_id = in_file_id
             AND   t.c#ops_id IS NULL
         ORDER BY
             2,
@@ -1110,10 +1098,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             fcr.t#pay_source t
              WHERE
             t.c#acc_id_close IS NOT NULL
-            AND   (
-                ( in_file_id =-1 )
-                OR    t.c#file_id = in_file_id
-            )
+            AND    t.c#file_id = in_file_id
             AND   t.c#ops_id IS NULL
         ORDER BY
             2,
@@ -1243,7 +1228,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             FROM
                 fcr.t#ops_kind ok
             WHERE
-                ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'00') );
+                ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'00') )
+                OR   ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'000') );
 
             SELECT
                 MAX(a.c#work_id),
@@ -1767,10 +1753,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             fcr.t#pay_source t
              WHERE
             t.c#acc_id_tter IS NOT NULL
-            AND   (
-                ( in_file_id =-1 )
-                OR    t.c#file_id = in_file_id
-            )
+            AND  t.c#file_id = in_file_id
             AND   t.c#ops_id IS NULL
         ORDER BY
             2,
@@ -1900,7 +1883,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             FROM
                 fcr.t#ops_kind ok
             WHERE
-                ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'00') );
+                ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'00') )
+                OR   ok.c#cod = TRIM(TO_CHAR(c.c#cod_rkc,'000') );
 
             SELECT
                 MAX(a.c#work_id),
@@ -2498,9 +2482,12 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                         t#pay_source
                     WHERE
                         c#ops_id IS NULL
+                        and c#file_id >= 0
                 );
 
         COMMIT;
+        
+        
         FOR new_acc_rec IN (
             SELECT DISTINCT
                 c#file_id
@@ -2508,6 +2495,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 t#pay_source p
             WHERE
                 c#ops_id IS NULL
+                and c#file_id >= 0
                 AND   c#account IN (
                     SELECT
                         c#out_num
@@ -2528,17 +2516,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             END;
         END LOOP;
 
-        FOR recalc_acc_rec IN (
-            SELECT DISTINCT
-                account_id
-            FROM
-                tt#acc_for_recalc
-        ) LOOP
-            BEGIN
-                p#total.update_total_account(recalc_acc_rec.account_id);
-                COMMIT;
-            END;
-        END LOOP;
 
         FOR recalc_house_rec IN (
             SELECT DISTINCT
@@ -2558,6 +2535,21 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 COMMIT;
             END;
         END LOOP;
+
+        FOR recalc_acc_rec IN (
+            SELECT DISTINCT
+                account_id
+            FROM
+                tt#acc_for_recalc
+        ) LOOP
+            BEGIN
+                p#total.update_total_account(recalc_acc_rec.account_id);
+                delete from tt#acc_for_recalc where account_id = recalc_acc_rec.account_id;
+                COMMIT;
+            END;
+        END LOOP;
+
+
 
     END;
 
@@ -2622,17 +2614,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             END;
         END LOOP;
 
-        FOR recalc_acc_rec IN (
-            SELECT DISTINCT
-                account_id
-            FROM
-                tt#acc_for_recalc
-        ) LOOP
-            BEGIN
-                p#total.update_total_account(recalc_acc_rec.account_id);
-                COMMIT;
-            END;
-        END LOOP;
 
         FOR recalc_house_rec IN (
             SELECT DISTINCT
@@ -2653,6 +2634,18 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             END;
         END LOOP;
 
+        FOR recalc_acc_rec IN (
+            SELECT DISTINCT
+                account_id
+            FROM
+                tt#acc_for_recalc
+        ) LOOP
+            BEGIN
+                p#total.update_total_account(recalc_acc_rec.account_id);
+                delete from tt#acc_for_recalc where account_id = recalc_acc_rec.account_id;
+                COMMIT;
+            END;
+        END LOOP;
 
     END;
 
