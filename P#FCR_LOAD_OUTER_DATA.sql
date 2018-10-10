@@ -2516,38 +2516,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             END;
         END LOOP;
 
+        p#total.recalc_tt#acc_for_recalc();
 
-        FOR recalc_house_rec IN (
-            SELECT DISTINCT
-                house_id
-            FROM
-                v_house_room_acc
-            WHERE
-                account_id IN (
-                    SELECT
-                        account_id
-                    FROM
-                        tt#acc_for_recalc
-                )
-        ) LOOP
-            BEGIN
-                p#total.update_total_house(recalc_house_rec.house_id);
-                COMMIT;
-            END;
-        END LOOP;
-
-        FOR recalc_acc_rec IN (
-            SELECT DISTINCT
-                account_id
-            FROM
-                tt#acc_for_recalc
-        ) LOOP
-            BEGIN
-                p#total.update_total_account(recalc_acc_rec.account_id);
-                delete from tt#acc_for_recalc where account_id = recalc_acc_rec.account_id;
-                COMMIT;
-            END;
-        END LOOP;
 
 
 
@@ -2556,10 +2526,10 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
     PROCEDURE execallfunctioncycleauto
         AS
     BEGIN
-        DELETE FROM tt#acc_for_recalc;
+        DELETE FROM tt#acc_for_recalc_auto;
 
         COMMIT;
-        INSERT INTO tt#acc_for_recalc
+        INSERT INTO tt#acc_for_recalc_auto
             SELECT
                 account_id
             FROM
@@ -2615,37 +2585,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         END LOOP;
 
 
-        FOR recalc_house_rec IN (
-            SELECT DISTINCT
-                house_id
-            FROM
-                v_house_room_acc
-            WHERE
-                account_id IN (
-                    SELECT
-                        account_id
-                    FROM
-                        tt#acc_for_recalc
-                )
-        ) LOOP
-            BEGIN
-                p#total.update_total_house(recalc_house_rec.house_id);
-                COMMIT;
-            END;
-        END LOOP;
-
-        FOR recalc_acc_rec IN (
-            SELECT DISTINCT
-                account_id
-            FROM
-                tt#acc_for_recalc
-        ) LOOP
-            BEGIN
-                p#total.update_total_account(recalc_acc_rec.account_id);
-                delete from tt#acc_for_recalc where account_id = recalc_acc_rec.account_id;
-                COMMIT;
-            END;
-        END LOOP;
+        p#total.recalc_tt#acc_for_recalc_auto();
 
     END;
 
