@@ -7,9 +7,9 @@ CREATE OR REPLACE PACKAGE p#total AS
         p_account_id   IN t#total_account.account_id%TYPE
     );
 
-    PROCEDURE recalc_tt#acc_for_recalc;
+    PROCEDURE recalc_t#acc_for_recalc;
 
-    PROCEDURE recalc_tt#acc_for_recalc_auto;
+    PROCEDURE recalc_t#acc_for_recalc_auto;
 
 END p#total;
 /
@@ -57,7 +57,7 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
         COMMIT;
     END update_total_account;
 
-    PROCEDURE recalc_tt#acc_for_recalc
+    PROCEDURE recalc_t#acc_for_recalc
         AS
     BEGIN
         FOR recalc_house_rec IN (
@@ -70,7 +70,7 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                     SELECT
                         account_id
                     FROM
-                        tt#acc_for_recalc
+                        t#acc_for_recalc
                 )
         ) LOOP
             BEGIN
@@ -83,11 +83,11 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
             SELECT DISTINCT
                 account_id
             FROM
-                tt#acc_for_recalc
+                t#acc_for_recalc
         ) LOOP
             BEGIN
                 p#total.update_total_account(recalc_acc_rec.account_id);
-                DELETE FROM tt#acc_for_recalc
+                DELETE FROM t#acc_for_recalc
                 WHERE
                     account_id = recalc_acc_rec.account_id;
 
@@ -95,9 +95,9 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
             END;
         END LOOP;
 
-    END recalc_tt#acc_for_recalc;
+    END recalc_t#acc_for_recalc;
 
-    PROCEDURE recalc_tt#acc_for_recalc_auto
+    PROCEDURE recalc_t#acc_for_recalc_auto
         AS
     BEGIN
         FOR recalc_house_rec IN (
@@ -110,7 +110,7 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                     SELECT
                         account_id
                     FROM
-                        tt#acc_for_recalc_auto
+                        t#acc_for_recalc_auto
                 )
         ) LOOP
             BEGIN
@@ -123,11 +123,11 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
             SELECT DISTINCT
                 account_id
             FROM
-                tt#acc_for_recalc_auto
+                t#acc_for_recalc_auto
         ) LOOP
             BEGIN
                 p#total.update_total_account(recalc_acc_rec.account_id);
-                DELETE FROM tt#acc_for_recalc_auto
+                DELETE FROM t#acc_for_recalc_auto
                 WHERE
                     account_id = recalc_acc_rec.account_id;
 
@@ -135,6 +135,6 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
             END;
         END LOOP;
 
-    END recalc_tt#acc_for_recalc_auto;
+    END recalc_t#acc_for_recalc_auto;
 END p#total;
 /

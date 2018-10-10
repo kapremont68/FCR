@@ -2451,13 +2451,14 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
 
     END;
 
+
     PROCEDURE execallfunctioncycle
         AS
     BEGIN
-        DELETE FROM tt#acc_for_recalc;
+        DELETE FROM t#acc_for_recalc;
 
         COMMIT;
-        INSERT INTO tt#acc_for_recalc
+        INSERT INTO t#acc_for_recalc
             SELECT
                 account_id
             FROM
@@ -2516,7 +2517,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
             END;
         END LOOP;
 
-        p#total.recalc_tt#acc_for_recalc();
+        p#total.recalc_t#acc_for_recalc();
 
 
 
@@ -2526,10 +2527,10 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
     PROCEDURE execallfunctioncycleauto
         AS
     BEGIN
-        DELETE FROM tt#acc_for_recalc_auto;
+        DELETE FROM t#acc_for_recalc_auto;
 
         COMMIT;
-        INSERT INTO tt#acc_for_recalc_auto
+        INSERT INTO t#acc_for_recalc_auto
             SELECT
                 account_id
             FROM
@@ -2585,7 +2586,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         END LOOP;
 
 
-        p#total.recalc_tt#acc_for_recalc_auto();
+        p#total.recalc_t#acc_for_recalc_auto();
 
     END;
 
