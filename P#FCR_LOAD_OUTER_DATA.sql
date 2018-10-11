@@ -2454,7 +2454,14 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
 
     PROCEDURE execallfunctioncycle
         AS
+        recalc_count number;
     BEGIN
+        select (select count(*) from t#acc_for_recalc)+(select count(*) from t#acc_for_recalc_auto)
+        into recalc_count
+        from dual;
+        if (recalc_count > 0) then 
+            raise_application_error(-20000,'Ѕаза зан€та другим распределением платежей');
+        end if;    
         DELETE FROM t#acc_for_recalc;
 
         COMMIT;
@@ -2526,7 +2533,15 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
 
     PROCEDURE execallfunctioncycleauto
         AS
+        recalc_count number;
     BEGIN
+        select (select count(*) from t#acc_for_recalc)+(select count(*) from t#acc_for_recalc_auto)
+        into recalc_count
+        from dual;
+        if (recalc_count > 0) then 
+            raise_application_error(-40000,'Ѕаза зан€та другим распределением платежей');
+        end if;    
+
         DELETE FROM t#acc_for_recalc_auto;
 
         COMMIT;
