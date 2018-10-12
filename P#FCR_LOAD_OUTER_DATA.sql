@@ -2490,7 +2490,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                         t#pay_source
                     WHERE
                         c#ops_id IS NULL
-                        and c#file_id >= 0
+--                        and c#file_id >= 0
                 );
 
         COMMIT;
@@ -2503,7 +2503,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 t#pay_source p
             WHERE
                 c#ops_id IS NULL
-                and c#file_id >= 0
+--                and c#file_id >= 0
                 AND   c#account IN (
                     SELECT
                         c#out_num
