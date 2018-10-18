@@ -1,4 +1,8 @@
 CREATE OR REPLACE PACKAGE p#total AS
+
+    RowNumCount  NUMBER  := 21;
+    
+
     PROCEDURE update_total_house (
         p_house_id   IN t#total_house.house_id%TYPE
     );
@@ -68,7 +72,7 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                 t#acc_for_recalc a
                 JOIN v_house_room_acc h ON ( a.account_id = h.account_id )
             where
-                rownum < 21
+                rownum < RowNumCount
         ) LOOP
             BEGIN
                 p#total.update_total_account(recalc_rec.account_id);
@@ -111,7 +115,7 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                 t#acc_for_recalc_auto a
                 JOIN v_house_room_acc h ON ( a.account_id = h.account_id )
             where
-                rownum < 21
+                rownum < RowNumCount
         ) LOOP
             BEGIN
                 p#total.update_total_account(recalc_rec.account_id);

@@ -2515,7 +2515,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                                 AND   c#file_id = new_acc_rec.c#file_id
                         );
         
-                COMMIT;
+--                COMMIT;
                 p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
                 COMMIT;
             END;
@@ -2585,7 +2585,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                                 AND   c#file_id = new_acc_rec.c#file_id
                         );
         
-                COMMIT;
+--                COMMIT;
                 
                 p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
                 COMMIT;
