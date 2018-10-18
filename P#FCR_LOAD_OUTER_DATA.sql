@@ -2487,8 +2487,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 c#file_id --desc
         ) LOOP
             BEGIN
-                p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
-                COMMIT;
                 INSERT INTO t#acc_for_recalc
                     SELECT
                         account_id
@@ -2517,6 +2515,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                                 AND   c#file_id = new_acc_rec.c#file_id
                         );
         
+                COMMIT;
+                p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
                 COMMIT;
             END;
         END LOOP;
@@ -2556,8 +2556,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 AND   c#file_id < 0
         ) LOOP
             BEGIN
-                p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
-                COMMIT;
                 
                 INSERT INTO t#acc_for_recalc_auto
                     SELECT
@@ -2587,6 +2585,9 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                                 AND   c#file_id = new_acc_rec.c#file_id
                         );
         
+                COMMIT;
+                
+                p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
                 COMMIT;
                 
             END;
