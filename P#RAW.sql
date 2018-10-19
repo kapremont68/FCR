@@ -154,7 +154,7 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
             WHERE
                 platelshikschet = '40703810302000000250'
                 AND   poluchatelschet = '40604810502000000308'
-                AND   data > DATE '2018-04-01' -- до этой даты спецприход грузился обратным парсингом и даты платежей могут не совпадать
+                AND   data > DATE '2018-04-01' -- до этой даты котел грузился обратным парсингом и даты платежей могут не совпадать
         ) LOOP
             p#fcr_load_outer_data.ins#kotel_other_prih(rec.pay_sum,rec.pay_date,rec.pay_comment);
         END LOOP;
