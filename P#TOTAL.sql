@@ -63,10 +63,17 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
 
 ------------------------
 
-    FUNCTION get_recalc_total_status RETURN NUMBER
-        AS
+    FUNCTION get_recalc_total_status RETURN NUMBER AS
+        cnt   NUMBER;
     BEGIN
-        RETURN 1;
+        SELECT
+            COUNT(*)
+        INTO
+            cnt
+        FROM
+            t#total_house_tmp;
+
+        RETURN cnt;
     END get_recalc_total_status;
 
 ------------------------
@@ -74,22 +81,24 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
     PROCEDURE update_totals
         AS
     BEGIN
-        EXECUTE IMMEDIATE 'TRUNCATE TABLE t#total_account_tmp'; -- обновляем временную таблицу итогов целиком
+--        EXECUTE IMMEDIATE 'TRUNCATE TABLE t#total_account_tmp'; -- обновляем временную таблицу итогов целиком
         INSERT INTO t#total_account_tmp
             SELECT
-                *
+                v.*,
+                sysdate
             FROM
-                v_account_balance;
-
-        COMMIT;
-        EXECUTE IMMEDIATE 'TRUNCATE TABLE t#total_house_tmp'; --  обновляем временную таблицу итогов по домам целиком
+                v_account_balance v;
+--
+--        COMMIT;
+--        EXECUTE IMMEDIATE 'TRUNCATE TABLE t#total_house_tmp'; --  обновляем временную таблицу итогов по домам целиком
         INSERT INTO t#total_house_tmp
             SELECT
-                *
+                v.*,
+                sysdate
             FROM
-                v3_house_balance;
+                v3_house_balance v;
 
-        COMMIT;
+--        COMMIT;
         ------------------------------------------------
         DELETE FROM t#total_account -- удаляем из чистовой таблицы изменившиеся счета
         WHERE
@@ -101,7 +110,8 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                     JOIN t#total_account_tmp tt ON ( t.account_id = tt.account_id
                                                      AND   t.mn = tt.mn )
                 WHERE
-                    t.period <> tt.period
+                    tt.row_time > t.row_time
+                    and (t.period <> tt.period
                     OR   t.house_id <> tt.house_id
                     OR   t.rooms_id <> tt.rooms_id
                     OR   t.flat_num <> tt.flat_num
@@ -115,13 +125,12 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                     OR   t.pay_sum_mn <> tt.pay_sum_mn
                     OR   t.dolg_sum_mn <> tt.dolg_sum_mn
                     OR   t.peni_sum_mn <> tt.peni_sum_mn
-                    OR   t.barter_sum_mn <> tt.barter_sum_mn
+                    OR   t.barter_sum_mn <> tt.barter_sum_mn)
             );
 
         INSERT INTO t#total_account -- добавляем в чистовую итоговую таблицу из временной записи по счетам, которых там нет
             SELECT
-                t.*,
-                SYSDATE
+                t.*
             FROM
                 t#total_account_tmp t
             WHERE
@@ -132,8 +141,9 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                         t#total_account
                 );
 
-        COMMIT;
+--        COMMIT;
         ----------------------------------------------------------    
+        
         DELETE FROM t#total_house -- удаляем из чистовой таблицы изменившиеся дома
         WHERE
             house_id IN (
@@ -144,7 +154,8 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                     JOIN t#total_house_tmp tt ON ( t.house_id = tt.house_id
                                                    AND   t.mn = tt.mn )
                 WHERE
-                    t.period <> tt.period
+                    tt.row_time > t.row_time
+                    and (t.period <> tt.period
                     OR   t.charge_sum_total <> tt.charge_sum_total
                     OR   t.pay_sum_total <> tt.pay_sum_total
                     OR   t.dolg_sum_total <> tt.dolg_sum_total
@@ -162,13 +173,12 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                     OR   t.balance_sum_mn <> tt.balance_sum_mn
                     OR   t.job_sum_mn <> tt.job_sum_mn
                     OR   t.owners_job_sum_mn <> tt.owners_job_sum_mn
-                    OR   t.gos_job_sum_mn <> tt.gos_job_sum_mn
+                    OR   t.gos_job_sum_mn <> tt.gos_job_sum_mn)
             );
 
         INSERT INTO t#total_house -- добавляем в чистовую итоговую таблицу из временной записи по домам, которых там нет
             SELECT
-                t.*,
-                SYSDATE
+                t.*
             FROM
                 t#total_house_tmp t
             WHERE
@@ -180,6 +190,7 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
                 );
 
         COMMIT;
+--        EXECUTE IMMEDIATE 'TRUNCATE TABLE t#total_house_tmp'; --  чистим таблицу для get_recalc_total_status
         ----------------------------------------------------------    
     END update_totals;
 
