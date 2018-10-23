@@ -330,12 +330,14 @@ CREATE OR REPLACE PACKAGE BODY p#raw AS
                 FROM
                     t#account
             )
-            AND   c#file_id < 0;
+--            AND   c#file_id < 0
+            ;
 
         IF
             cnt > 0
         THEN
-            p#fcr_load_outer_data.execallfunctioncycleauto ();
+--            p#fcr_load_outer_data.execallfunctioncycleauto ();
+            p#fcr_load_outer_data.execallfunctioncycle ();
         END IF;
     END;
 -----------------------------------------------------------
