@@ -195,23 +195,52 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
     BEGIN
         a_note := 'P3UTILS.DO#IMPORT: '
         || SYSDATE;
+
+--        DELETE FROM t3_pay_import
+--        WHERE
+--            ROWID NOT IN (
+--                SELECT
+--                    MIN(ROWID) rid
+--                FROM
+--                    t3_pay_import
+--                GROUP BY
+--                    data_pl,
+--                    summ_pl,
+--                    pd_num,
+--                    inn,
+--                    id_house,
+--                    dogovor_da,
+--                    dogovor_nu
+--            );
+
         DELETE FROM t3_pay_import
         WHERE
-            ROWID NOT IN (
+            ROWID IN (
                 SELECT
-                    MIN(ROWID) rid
+                    ROWID
                 FROM
-                    t3_pay_import
-                GROUP BY
-                    data_pl,
-                    summ_pl,
-                    pd_num,
-                    inn,
-                    id_house,
-                    dogovor_da,
-                    dogovor_nu
+                    (
+                        SELECT
+                            s.*,
+                            ROW_NUMBER() OVER(
+                                PARTITION BY data_pl,
+                                summ_pl,
+                                pd_num,
+                                inn,
+                                plat,
+                                id_house,
+                                tip_work,
+                                dogovor_da,
+                                dogovor_nu
+                                ORDER BY
+                                    item_date
+                            ) num
+                        FROM
+                            t3_pay_import s
+                    )
+                WHERE
+                    num <> 1
             );
-
         COMMIT;
         INSERT INTO t3_contractors (
             c#inn,
@@ -227,7 +256,6 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
                 c.c#id IS NULL;
 
         COMMIT;
-        
         INSERT INTO t3_contracts (
             c#date,
             c#num,
@@ -251,7 +279,6 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
                 d.c#id IS NULL;
 
         COMMIT;
-        
         INSERT INTO t3_jobs (
             c#job_type_id,
             c#contract_id,
@@ -276,7 +303,6 @@ CREATE OR REPLACE PACKAGE BODY p3utils AS
                 j.c#id IS NULL;
 
         COMMIT;
-        
         INSERT INTO t3_pay (
             c#pay_type_id,
             c#source,
