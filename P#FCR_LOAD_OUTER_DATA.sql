@@ -2456,13 +2456,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         AS
         recalc_count number;
     BEGIN
---        select (select count(*) from t#acc_for_recalc)+(select count(*) from t#acc_for_recalc_auto)
---        into recalc_count
---        from dual;
---        if (recalc_count > 0) then 
---            raise_application_error(-20000,'Ѕаза зан€та другим распределением платежей');
---        end if;    
-
         
         FOR new_acc_rec IN (
             SELECT DISTINCT
@@ -2471,7 +2464,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 t#pay_source p
             WHERE
                 c#ops_id IS NULL
---                and c#file_id >= 0
                 AND   c#account IN (
                     SELECT
                         c#out_num
@@ -2487,35 +2479,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
                 c#file_id --desc
         ) LOOP
             BEGIN
---                INSERT INTO t#acc_for_recalc
---                    SELECT
---                        account_id
---                    FROM
---                        (
---                            SELECT
---                                c#account_id account_id,
---                                c#out_num
---                            FROM
---                                t#account_op
---                            UNION
---                            SELECT
---                                c#id,
---                                c#num
---                            FROM
---                                t#account
---                        )
---                    WHERE
---                        c#out_num IN (
---                            SELECT
---                                c#account
---                            FROM
---                                t#pay_source
---                            WHERE
---                                c#ops_id IS NULL
---                                AND   c#file_id = new_acc_rec.c#file_id
---                        );
-        
---                COMMIT;
                 p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
                 COMMIT;
             END;
@@ -2527,13 +2490,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         AS
         recalc_count number;
     BEGIN
---        select (select count(*) from t#acc_for_recalc)+(select count(*) from t#acc_for_recalc_auto)
---        into recalc_count
---        from dual;
---        if (recalc_count > 0) then 
---        
---            raise_application_error(-20000,'Ѕаза зан€та другим распределением платежей');
---        end if;    
 
         FOR new_acc_rec IN (
             SELECT DISTINCT
@@ -2557,35 +2513,6 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR_LOAD_OUTER_DATA" AS
         ) LOOP
             BEGIN
                 
---                INSERT INTO t#acc_for_recalc_auto
---                    SELECT
---                        account_id
---                    FROM
---                        (
---                            SELECT
---                                c#account_id account_id,
---                                c#out_num
---                            FROM
---                                t#account_op
---                            UNION
---                            SELECT
---                                c#id,
---                                c#num
---                            FROM
---                                t#account
---                        )
---                    WHERE
---                        c#out_num IN (
---                            SELECT
---                                c#account
---                            FROM
---                                t#pay_source
---                            WHERE
---                                c#ops_id IS NULL
---                                AND   c#file_id = new_acc_rec.c#file_id
---                        );
-        
---                COMMIT;
                 
                 p#fcr_load_outer_data.execallfunction(a#in_file_id => new_acc_rec.c#file_id,a#in_date => SYSDATE);
                 COMMIT;
