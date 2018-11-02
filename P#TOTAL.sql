@@ -85,47 +85,54 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
         INSERT INTO t#total_account_tmp
             SELECT
                 v.*,
-                sysdate
+                SYSDATE
             FROM
                 v_account_balance v;
 --
 --        COMMIT;
 --        EXECUTE IMMEDIATE 'TRUNCATE TABLE t#total_house_tmp'; --  обновляем временную таблицу итогов по домам целиком
+
         INSERT INTO t#total_house_tmp
             SELECT
                 v.*,
-                sysdate
+                SYSDATE
             FROM
                 v3_house_balance v;
 
 --        COMMIT;
         ------------------------------------------------
+
         DELETE FROM t#total_account -- удаляем из чистовой таблицы изменившиеся счета
         WHERE
             account_id IN (
                 SELECT
-                    t.account_id
+                    tt.account_id
                 FROM
-                    t#total_account t
-                    JOIN t#total_account_tmp tt ON ( t.account_id = tt.account_id
+                    t#total_account_tmp tt
+                    LEFT JOIN t#total_account t ON ( t.account_id = tt.account_id
                                                      AND   t.mn = tt.mn )
                 WHERE
-                    tt.row_time > t.row_time
-                    and (t.period <> tt.period
-                    OR   t.house_id <> tt.house_id
-                    OR   t.rooms_id <> tt.rooms_id
-                    OR   t.flat_num <> tt.flat_num
-                    OR   t.end_account_mn <> tt.end_account_mn
-                    OR   t.charge_sum_total <> tt.charge_sum_total
-                    OR   t.pay_sum_total <> tt.pay_sum_total
-                    OR   t.dolg_sum_total <> tt.dolg_sum_total
-                    OR   t.peni_sum_total <> tt.peni_sum_total
-                    OR   t.barter_sum_total <> tt.barter_sum_total
-                    OR   t.charge_sum_mn <> tt.charge_sum_mn
-                    OR   t.pay_sum_mn <> tt.pay_sum_mn
-                    OR   t.dolg_sum_mn <> tt.dolg_sum_mn
-                    OR   t.peni_sum_mn <> tt.peni_sum_mn
-                    OR   t.barter_sum_mn <> tt.barter_sum_mn)
+                    t.account_id IS NULL
+                    OR    (
+                        tt.row_time > t.row_time
+                        AND   (
+                            t.period <> tt.period
+                            OR    t.house_id <> tt.house_id
+                            OR    t.rooms_id <> tt.rooms_id
+                            OR    t.flat_num <> tt.flat_num
+                            OR    t.end_account_mn <> tt.end_account_mn
+                            OR    t.charge_sum_total <> tt.charge_sum_total
+                            OR    t.pay_sum_total <> tt.pay_sum_total
+                            OR    t.dolg_sum_total <> tt.dolg_sum_total
+                            OR    t.peni_sum_total <> tt.peni_sum_total
+                            OR    t.barter_sum_total <> tt.barter_sum_total
+                            OR    t.charge_sum_mn <> tt.charge_sum_mn
+                            OR    t.pay_sum_mn <> tt.pay_sum_mn
+                            OR    t.dolg_sum_mn <> tt.dolg_sum_mn
+                            OR    t.peni_sum_mn <> tt.peni_sum_mn
+                            OR    t.barter_sum_mn <> tt.barter_sum_mn
+                        )
+                    )
             );
 
         INSERT INTO t#total_account -- добавляем в чистовую итоговую таблицу из временной записи по счетам, которых там нет
@@ -143,37 +150,42 @@ CREATE OR REPLACE PACKAGE BODY p#total AS
 
 --        COMMIT;
         ----------------------------------------------------------    
-        
+
         DELETE FROM t#total_house -- удаляем из чистовой таблицы изменившиеся дома
         WHERE
             house_id IN (
                 SELECT
-                    t.house_id
+                    tt.house_id
                 FROM
-                    t#total_house t
-                    JOIN t#total_house_tmp tt ON ( t.house_id = tt.house_id
+                    t#total_house_tmp tt
+                    LEFT JOIN t#total_house t ON ( t.house_id = tt.house_id
                                                    AND   t.mn = tt.mn )
                 WHERE
-                    tt.row_time > t.row_time
-                    and (t.period <> tt.period
-                    OR   t.charge_sum_total <> tt.charge_sum_total
-                    OR   t.pay_sum_total <> tt.pay_sum_total
-                    OR   t.dolg_sum_total <> tt.dolg_sum_total
-                    OR   t.peni_sum_total <> tt.peni_sum_total
-                    OR   t.barter_sum_total <> tt.barter_sum_total
-                    OR   t.balance_sum_total <> tt.balance_sum_total
-                    OR   t.job_sum_total <> tt.job_sum_total
-                    OR   t.owners_job_sum_total <> tt.owners_job_sum_total
-                    OR   t.gos_job_sum_total <> tt.gos_job_sum_total
-                    OR   t.charge_sum_mn <> tt.charge_sum_mn
-                    OR   t.pay_sum_mn <> tt.pay_sum_mn
-                    OR   t.dolg_sum_mn <> tt.dolg_sum_mn
-                    OR   t.peni_sum_mn <> tt.peni_sum_mn
-                    OR   t.barter_sum_mn <> tt.barter_sum_mn
-                    OR   t.balance_sum_mn <> tt.balance_sum_mn
-                    OR   t.job_sum_mn <> tt.job_sum_mn
-                    OR   t.owners_job_sum_mn <> tt.owners_job_sum_mn
-                    OR   t.gos_job_sum_mn <> tt.gos_job_sum_mn)
+                    t.house_id IS NULL
+                    OR    (
+                        tt.row_time > t.row_time
+                        AND   (
+                            t.period <> tt.period
+                            OR    t.charge_sum_total <> tt.charge_sum_total
+                            OR    t.pay_sum_total <> tt.pay_sum_total
+                            OR    t.dolg_sum_total <> tt.dolg_sum_total
+                            OR    t.peni_sum_total <> tt.peni_sum_total
+                            OR    t.barter_sum_total <> tt.barter_sum_total
+                            OR    t.balance_sum_total <> tt.balance_sum_total
+                            OR    t.job_sum_total <> tt.job_sum_total
+                            OR    t.owners_job_sum_total <> tt.owners_job_sum_total
+                            OR    t.gos_job_sum_total <> tt.gos_job_sum_total
+                            OR    t.charge_sum_mn <> tt.charge_sum_mn
+                            OR    t.pay_sum_mn <> tt.pay_sum_mn
+                            OR    t.dolg_sum_mn <> tt.dolg_sum_mn
+                            OR    t.peni_sum_mn <> tt.peni_sum_mn
+                            OR    t.barter_sum_mn <> tt.barter_sum_mn
+                            OR    t.balance_sum_mn <> tt.balance_sum_mn
+                            OR    t.job_sum_mn <> tt.job_sum_mn
+                            OR    t.owners_job_sum_mn <> tt.owners_job_sum_mn
+                            OR    t.gos_job_sum_mn <> tt.gos_job_sum_mn
+                        )
+                    )
             );
 
         INSERT INTO t#total_house -- добавляем в чистовую итоговую таблицу из временной записи по домам, которых там нет
