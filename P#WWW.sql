@@ -191,24 +191,29 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
             p#tools.get_person_name_by_id(l.c#person_id) person_name,
             TO_CHAR(p#utils.get#tarif(t.account_id,TO_DATE(p_period,'mm.yyyy') ) ) tarif,
             p#tools.period_in_words(t.period) period,
-            TO_DATE('01.'
-            || t.period,'dd.mm.yyyy') period_full,
+            CASE
+                    WHEN mn = p#mn_utils.get#mn(SYSDATE) THEN trunc(SYSDATE)
+                    ELSE p#mn_utils.get#date(mn + 1) - 1
+                END
+            period_full,
             TO_CHAR(charge_sum_mn) charge_sum_mn,
-            TO_CHAR(charge_sum_total - charge_sum_mn) charge_sum_total,
-            TO_CHAR(pay_sum_total - pay_sum_mn) pay_sum_total,
-            TO_CHAR( (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) ) dolg_sum_total,
+            TO_CHAR(charge_sum_total) charge_sum_total,
+            TO_CHAR(pay_sum_total) pay_sum_total,
+            TO_CHAR(pay_sum_mn) pay_sum_mn,
+            TO_CHAR(dolg_sum_total) dolg_sum_tek,
+            TO_CHAR(greatest(0,dolg_sum_total - charge_sum_mn)) dolg_sum_pred,
             TO_CHAR(
                 CASE
-                    WHEN(charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) >= 0 THEN charge_sum_mn
-                    ELSE greatest(0,charge_sum_mn + (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) )
+                    WHEN(dolg_sum_total - charge_sum_mn >= 0) THEN charge_sum_mn
+                    ELSE greatest(0,charge_sum_mn + dolg_sum_total - charge_sum_mn)
                 END
             ) to_pay_mn,
             TO_CHAR(
                 CASE
-                    WHEN(charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) >= 0 THEN charge_sum_mn
-                    ELSE greatest(0,charge_sum_mn + (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) )
+                    WHEN(dolg_sum_total - charge_sum_mn >= 0) THEN charge_sum_mn
+                    ELSE greatest(0,charge_sum_mn + dolg_sum_total - charge_sum_mn)
                 END
-            + greatest(0, (charge_sum_total - charge_sum_mn) - (pay_sum_total - pay_sum_mn) ) ) to_pay_total,
+            + greatest(0,dolg_sum_total - charge_sum_mn) ) to_pay_total,
             coalesce(p#www.get#kvit_delivery_address(t.account_id),p#utils.get_obj#house_postamt(t.house_id).f#code
             || ', '
             || ha.addr
@@ -218,11 +223,22 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
                     ELSE ', пом. '
                 END
             || t.flat_num) delivery_addr
+
+--            ,TO_CHAR(lp.PAY_DATE,'dd.mm.yyyy') LAST_PAY_DATE -- для последнего платежа 13.11.2018
+--            ,lp.PAY_SUM LAST_PAY_SUM
+--            ,lp.PAY_AGENT LAST_PAY_AGENT
+            
+            
                      FROM
             t#total_account t
             JOIN mv_houses_adreses ha ON ( t.house_id = ha.house_id )
             JOIN v#rooms r ON ( t.rooms_id = r.c#rooms_id )
             JOIN v#acc_last2 l ON ( t.account_id = l.c#account_id )
+
+--            LEFT JOIN V_LAST_PAY LP ON ( -- для последнего платежа 13.11.2018
+--                LP.ACC_ID = t.ACCOUNT_ID
+--            )
+            
                      WHERE
             account_id = (
                 SELECT
