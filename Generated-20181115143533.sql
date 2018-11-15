@@ -1,0 +1,27 @@
+--------------------------------------------------------
+--  File created - четверг-но€бр€-15-2018   
+--------------------------------------------------------
+@D:\!SQL\!FCR1\DEL_ACC.sql
+@D:\!SQL\!FCR1\DUMP_CSV.sql
+@D:\!SQL\!FCR1\GET_ACC_CHARGE.sql
+@D:\!SQL\!FCR1\GET_ACC_DEBT.sql
+@D:\!SQL\!FCR1\GET_ACC_FOR_PAY.sql
+@D:\!SQL\!FCR1\GET_ACC_FOR_PAY_ANY.sql
+@D:\!SQL\!FCR1\GET_ACC_FOR_PAY_TTER.sql
+@D:\!SQL\!FCR1\GET_CURRENT_USER.sql
+@D:\!SQL\!FCR1\GET_DATE_CLOSE.sql
+@D:\!SQL\!FCR1\GET_FIRST_UNPAID_KVIT.sql
+@D:\!SQL\!FCR1\GET_INNER_NUMBER.sql
+@D:\!SQL\!FCR1\GET_NEW_RKC_DATE.sql
+@D:\!SQL\!FCR1\GET_OUTER_NUMBER.sql
+@D:\!SQL\!FCR1\GET_PAID_KVIT.sql
+@D:\!SQL\!FCR1\GET_NUMBER.sql
+@D:\!SQL\!FCR1\GET_OUT_NUM.sql
+@D:\!SQL\!FCR1\GET_SUBSTR.sql
+@D:\!SQL\!FCR1\GET_USER.sql
+@D:\!SQL\!FCR1\LST_DEBT_OMS.sql
+@D:\!SQL\!FCR1\LST_DEBT_RKC.sql
+@D:\!SQL\!FCR1\LST_GET_PAY_RKC.sql
+@D:\!SQL\!FCR1\LST_PERSON_J_INFO.sql
+@D:\!SQL\!FCR1\TO_NUM.sql
+@D:\!SQL\!FCR1\UPD_RKC_J.sql
