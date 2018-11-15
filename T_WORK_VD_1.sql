@@ -1,0 +1,27 @@
+--------------------------------------------------------
+--  DDL for Table T#WORK_VD
+--------------------------------------------------------
+
+  CREATE TABLE "FCR"."T#WORK_VD" 
+   (	"C#ID" NUMBER(*,0), 
+	"C#VN" NUMBER(*,0), 
+	"C#VALID_TAG" VARCHAR2(1 BYTE), 
+	"C#SIGN_DATE" DATE, 
+	"C#SIGN_S_ID" NUMBER, 
+	"C#TAR_TYPE_TAG" VARCHAR2(2 BYTE), 
+	"C#TAR_VAL" NUMBER
+   ) SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "TS#DATA1" ;
+
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#ID" IS 'Ид хоста.';
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#VN" IS 'Номер версии.';
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#VALID_TAG" IS 'Действующая {"N":нет;"Y":да}.';
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#SIGN_DATE" IS 'Подпись, дата.';
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#SIGN_S_ID" IS 'Подпись, ид сессии.';
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#TAR_TYPE_TAG" IS 'Тип тарифа (определение объема) {"1":единичный (единица на лицевой счёт);"A":площадной.}';
+   COMMENT ON COLUMN "FCR"."T#WORK_VD"."C#TAR_VAL" IS 'Значение тарифа (цена единицы объёма).';

@@ -1,0 +1,35 @@
+--------------------------------------------------------
+--  DDL for View V#ZACHET
+--------------------------------------------------------
+
+  CREATE OR REPLACE FORCE EDITIONABLE VIEW "FCR"."V#ZACHET" ("RKC_ID", "PERIOD", "C#OUT_NUM", "HOUSE_ADDR", "FLAT_NUM", "PERSON_NAME", "CHARGE_SUM_MN", "CHARGE_SUM_TOTAL", "PAY_SUM_TOTAL", "BARTER_SUM_TOTAL", "DOLG_SUM_TOTAL", "OVERPAYMENT_MN") AS 
+  select
+    L2.C#OUT_PROC_ID RKC_ID,
+    T.PERIOD,
+    L2.C#OUT_NUM,
+    ADDR HOUSE_ADDR,
+    T.FLAT_NUM FLAT_NUM,
+    PN.PERSON_NAME,
+    CHARGE_SUM_MN,
+    CHARGE_SUM_TOTAL,
+    PAY_SUM_TOTAL,
+    BARTER_SUM_TOTAL,
+    DOLG_SUM_TOTAL-CHARGE_SUM_MN DOLG_SUM_TOTAL,
+    LEAST(CHARGE_SUM_MN,ABS(DOLG_SUM_TOTAL-CHARGE_SUM_MN)) OVERPAYMENT_MN
+from
+    T#TOTAL_ACCOUNT T
+    join MV_HOUSES_ADRESES HA on (T.HOUSE_ID = HA.HOUSE_ID)
+    join V#ACC_LAST2 L2 on (T.ACCOUNT_ID = L2.C#ACCOUNT_ID)
+    left JOIN MV_PERSON_NAMES PN on (L2.C#PERSON_ID = PN.PERSON_ID)
+WHERE
+    MN = (select max(mn) from T#TOTAL_ACCOUNT where CHARGE_SUM_MN > 0)
+    and CHARGE_SUM_MN > 0
+    and DOLG_SUM_TOTAL-CHARGE_SUM_MN < 0
+    and (
+        BARTER_SUM_TOTAL > 0
+        OR
+        L2.C#ACCOUNT_ID IN (SELECT coalesce(C#ACC_ID, C#ACC_ID_CLOSE, C#ACC_ID_TTER)
+                         FROM T#PAY_SOURCE
+                         WHERE C#COD_RKC = '88' AND C#SUMMA = 0 AND C#FINE > 0)
+    )
+;

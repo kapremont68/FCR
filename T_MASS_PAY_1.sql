@@ -1,0 +1,37 @@
+--------------------------------------------------------
+--  DDL for Table T#MASS_PAY
+--------------------------------------------------------
+
+  CREATE TABLE "FCR"."T#MASS_PAY" 
+   (	"C#ID" NUMBER(*,0), 
+	"C#PERSON_ID" NUMBER(*,0), 
+	"C#SUM" NUMBER(38,2), 
+	"C#DATE" DATE, 
+	"C#LIVING_TAG" VARCHAR2(1 BYTE), 
+	"C#OPS_ID" NUMBER, 
+	"C#PARENT_ID" NUMBER, 
+	"C#NPD" VARCHAR2(20 BYTE), 
+	"C#COD_RKC" VARCHAR2(3 BYTE), 
+	"C#COMMENT" VARCHAR2(300 BYTE), 
+	"C#REMOVE_FLG" VARCHAR2(1 BYTE), 
+	"C#ACC_ID" NUMBER, 
+	"C#STORNO_FLG" VARCHAR2(1 BYTE), 
+	"С#OSTATOK" NUMBER, 
+	"RAW_ID" NUMBER, 
+	"ROW_TIME" TIMESTAMP (6) DEFAULT sysdate
+   ) SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 8192 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "TS#DATA1" ;
+
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#PARENT_ID" IS 'Используем для допроведения остатков платежа';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#NPD" IS 'номер платежного документа';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#COD_RKC" IS 'код ркц';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#COMMENT" IS 'комментарий';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#REMOVE_FLG" IS 'Выполнен перенос остатка новой записью, с этой записи больше не переносим';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#ACC_ID" IS 'ЛС с которого снимаем сумму';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."C#STORNO_FLG" IS 'Сторнирование оплаты по ЛС либо излишне разнесенной';
+   COMMENT ON COLUMN "FCR"."T#MASS_PAY"."RAW_ID" IS 'ID из T#RAW_1C_V101';

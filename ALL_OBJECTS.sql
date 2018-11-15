@@ -1,0 +1,2 @@
+-- Unable to render SYNONYM DDL for object PUBLIC.ALL_OBJECTS with DBMS_METADATA attempting internal generator.
+CREATE PUBLIC SYNONYM ALL_OBJECTS FOR SYS.ALL_OBJECTS

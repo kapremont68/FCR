@@ -1,0 +1,17 @@
+--------------------------------------------------------
+--  DDL for Trigger T4_HOSTS_TRG
+--------------------------------------------------------
+
+  CREATE OR REPLACE EDITIONABLE TRIGGER "FCR"."T4_HOSTS_TRG" 
+BEFORE INSERT ON T4_HOSTS 
+FOR EACH ROW 
+BEGIN
+  <<COLUMN_SEQUENCES>>
+  BEGIN
+    IF INSERTING AND :NEW.C#ID IS NULL THEN
+      SELECT T4_HOSTS_SEQ.NEXTVAL INTO :NEW.C#ID FROM SYS.DUAL;
+    END IF;
+  END COLUMN_SEQUENCES;
+END;
+/
+ALTER TRIGGER "FCR"."T4_HOSTS_TRG" ENABLE;
