@@ -5,6 +5,12 @@ CREATE OR REPLACE PACKAGE p#reports2 AS
         a#period VARCHAR2 -- mm.yyyy
     ) RETURN SYS_REFCURSOR;
 
+    FUNCTION lst#akt_j (
+        a#person_id NUMBER,
+        a#start_per varchar2, -- mm.yyyy 
+        a#end_per varchar2 -- mm.yyyy 
+    ) RETURN SYS_REFCURSOR;
+
 END p#reports2;
 /
 
@@ -90,6 +96,136 @@ CREATE OR REPLACE PACKAGE BODY p#reports2 AS
 
         RETURN ret;
     END lst#mun_dolg;
+---------------------------
+
+    FUNCTION lst#akt_j (
+        a#person_id   NUMBER,
+        a#start_per   VARCHAR2, -- mm.yyyy 
+        a#end_per     VARCHAR2 -- mm.yyyy 
+    ) RETURN SYS_REFCURSOR AS
+        res          SYS_REFCURSOR;
+        a#mn_begin   INTEGER;
+        a#mn_end     INTEGER;
+    BEGIN
+        SELECT
+            months_between(trunc(TO_DATE('01.'
+            || a#start_per,'dd.mm.yyyy'),'MM'),DATE '2000-12-01')
+        INTO
+            a#mn_begin
+        FROM
+            dual;
+
+        SELECT
+            months_between(trunc(TO_DATE('01.'
+            || a#end_per,'dd.mm.yyyy'),'MM'),DATE '2000-12-01')
+        INTO
+            a#mn_end
+        FROM
+            dual;
+
+--        a#mn_begin := 162;
+--        a#mn_end := 500;
+        
+        OPEN res FOR WITH jacc AS (
+            SELECT
+                c#account_id
+            FROM
+                v#account_spec
+            WHERE
+                c#person_id = a#person_id
+        ),ops AS (
+            SELECT
+                *
+            FROM
+                v#op
+                JOIN v#ops ON ( v#op.c#ops_id = v#ops.c#id )
+            WHERE
+                c#account_id IN (
+                    SELECT
+                        *
+                    FROM
+                        jacc
+                )
+        ),charg AS (
+            SELECT
+                c#mn ch_mn,
+                SUM(c#vol) ch_vol,
+                SUM(c#sum) ch_sum
+            FROM
+                t#charge
+            WHERE
+                c#account_id IN (
+                    SELECT
+                        *
+                    FROM
+                        jacc
+                )
+                AND   c#mn BETWEEN a#mn_begin AND a#mn_end
+            GROUP BY
+                c#mn
+        ),pays AS (
+            SELECT
+                TO_CHAR(c#real_date,'mm.yyyy') p_per,
+                SUM(c#sum) p_sum
+            FROM
+                v#op
+            WHERE
+                c#account_id IN (
+                    SELECT
+                        *
+                    FROM
+                        jacc
+                )
+            GROUP BY
+                TO_CHAR(c#real_date,'mm.yyyy')
+        ),chp AS (
+            SELECT
+                ch_mn,
+                TO_CHAR(p#mn_utils.get#date(ch_mn),'mm.yyyy') per,
+                p#tools.get_tarif(p#mn_utils.get#date(ch_mn) ) tarif,
+                ch_vol,
+                ch_sum,
+                p_sum
+            FROM
+                charg left
+                JOIN pays ON ( TO_CHAR(p#mn_utils.get#date(ch_mn),'mm.yyyy') = p_per )
+            ORDER BY
+                ch_mn
+        ),total1 AS (
+            SELECT
+                chp.*,
+                SUM(ch_sum) OVER(
+                    PARTITION BY 1
+                    ORDER BY
+                        ch_mn
+                ) ch_total,
+                SUM(p_sum) OVER(
+                    PARTITION BY 1
+                    ORDER BY
+                        ch_mn
+                ) p_total
+            FROM
+                chp
+        ),total2 AS (
+            SELECT
+                substr(p#tools.get_person_name_by_id(a#person_id),1,instr(p#tools.get_person_name_by_id(19),'(»ÕÕ') - 1) jname,
+                per,
+                tarif,
+                ch_vol,
+                nvl(ch_sum,0) ch_sum,
+                nvl(p_sum,0) p_sum,
+                nvl(ch_total,0) ch_total,
+                nvl(p_total,0) p_total,
+                nvl(ch_total,0) - nvl(p_total,0) dolg
+            FROM
+                total1
+        ) SELECT
+            *
+          FROM
+            total2;
+
+        RETURN res;
+    END lst#akt_j;
 
 END p#reports2;
 /
