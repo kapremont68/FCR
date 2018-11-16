@@ -132,6 +132,11 @@ CREATE OR REPLACE PACKAGE p#tools AS
         p_house_id NUMBER
     ) RETURN NUMBER;
 
+    FUNCTION get_last_pay_str (
+        p_acc_id NUMBER,
+        p_max_date DATE
+    ) RETURN VARCHAR2;
+
 END p#tools;
 /
 
@@ -482,7 +487,7 @@ CREATE OR REPLACE PACKAGE BODY p#tools AS
 --                p#fcr.ins#account_op(a#account_id => new_acc_rec.account_id,a#date => get_new_rkc_date(new_acc_rec.account_id,new_acc_rec.new_date),a#out_proc_id
 --=> 1,a#out_num => new_acc_rec.new_account_num,a#note => 'ADD_NEW_ERC_ACCOUNTS: '
 --                || SYSDATE);
-null;
+        NULL;
 --            EXCEPTION
 --                WHEN OTHERS THEN
 --                    NULL;
@@ -1163,26 +1168,67 @@ null;
     FUNCTION period_in_words (
         p_period VARCHAR2
     ) RETURN VARCHAR2 AS
-        m   NUMBER;
-        mw varchar2(10);
+        m    NUMBER;
+        mw   VARCHAR2(10);
     BEGIN
         m := substr(p_period,0,2);
-        mw := CASE m
-            when 1 then 'Январь'
-            when 2 then 'Февраль'
-            when 3 then 'Март'
-            when 4 then 'Апрель'
-            when 5 then 'Май'
-            when 6 then 'Июнь'
-            when 7 then 'Июль'
-            when 8 then 'Август'
-            when 9 then 'Сентябрь'
-            when 10 then 'Октябрь'
-            when 11 then 'Ноябрь'
-            when 12 then 'Декабрь'
-        END;
-        RETURN mw||' '||substr(p_period,4,4);
+        mw :=
+            CASE m
+                WHEN 1 THEN 'Январь'
+                WHEN 2 THEN 'Февраль'
+                WHEN 3 THEN 'Март'
+                WHEN 4 THEN 'Апрель'
+                WHEN 5 THEN 'Май'
+                WHEN 6 THEN 'Июнь'
+                WHEN 7 THEN 'Июль'
+                WHEN 8 THEN 'Август'
+                WHEN 9 THEN 'Сентябрь'
+                WHEN 10 THEN 'Октябрь'
+                WHEN 11 THEN 'Ноябрь'
+                WHEN 12 THEN 'Декабрь'
+            END;
+
+        RETURN mw
+        || ' '
+        || substr(p_period,4,4);
     END period_in_words;
+--------------------------------
+
+    FUNCTION get_last_pay_str (
+        p_acc_id NUMBER,
+        p_max_date DATE
+    ) RETURN VARCHAR2 AS
+        res   VARCHAR2(500);
+    BEGIN
+        SELECT
+            CASE
+                WHEN (pay_sum is null) THEN ''
+                ELSE 'Последняя оплата: '
+                || pay_sum
+                || ' руб. от '
+                || TO_CHAR(pay_date,'dd.mm.yyyy')
+                || ' через '
+                || p.pay_agent
+            END
+        INTO
+            res
+        FROM
+            v_all_pays p
+        WHERE
+            acc_id = p_acc_id
+            AND   pay_date = (
+                SELECT
+                    MAX(pay_date)
+                FROM
+                    v_all_pays
+                WHERE
+                    acc_id = p_acc_id
+                    and PAY_SUM <> 0
+                    AND   pay_date <= p_max_date
+            );
+
+        RETURN res;
+    END get_last_pay_str;
 
 END p#tools;
 /

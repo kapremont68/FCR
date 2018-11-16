@@ -201,7 +201,7 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
             TO_CHAR(pay_sum_total) pay_sum_total,
             TO_CHAR(pay_sum_mn) pay_sum_mn,
             TO_CHAR(dolg_sum_total) dolg_sum_tek,
-            TO_CHAR(greatest(0,dolg_sum_total - charge_sum_mn)) dolg_sum_pred,
+            TO_CHAR(greatest(0,dolg_sum_total - charge_sum_mn) ) dolg_sum_pred,
             TO_CHAR(
                 CASE
                     WHEN(dolg_sum_total - charge_sum_mn >= 0) THEN charge_sum_mn
@@ -222,23 +222,19 @@ CREATE OR REPLACE PACKAGE BODY p#www AS
                     WHEN r.c#valid_tag = 'Y' THEN ', кв. '
                     ELSE ', пом. '
                 END
-            || t.flat_num) delivery_addr
-
---            ,TO_CHAR(lp.PAY_DATE,'dd.mm.yyyy') LAST_PAY_DATE -- для последнего платежа 13.11.2018
---            ,lp.PAY_SUM LAST_PAY_SUM
---            ,lp.PAY_AGENT LAST_PAY_AGENT
-            
-            
+            || t.flat_num) delivery_addr,
+-------------------------            
+            P#TOOLS.GET_LAST_PAY_STR(t.account_id, CASE
+                    WHEN mn = p#mn_utils.get#mn(SYSDATE) THEN trunc(SYSDATE)
+                    ELSE p#mn_utils.get#date(mn + 1) - 1
+                END) last_pay_str
+---------------------------------------            
                      FROM
             t#total_account t
             JOIN mv_houses_adreses ha ON ( t.house_id = ha.house_id )
             JOIN v#rooms r ON ( t.rooms_id = r.c#rooms_id )
             JOIN v#acc_last2 l ON ( t.account_id = l.c#account_id )
-
---            LEFT JOIN V_LAST_PAY LP ON ( -- для последнего платежа 13.11.2018
---                LP.ACC_ID = t.ACCOUNT_ID
---            )
-            
+-----------------------------            
                      WHERE
             account_id = (
                 SELECT
