@@ -371,6 +371,18 @@ CREATE OR REPLACE PACKAGE "P#FCR"
   FUNCTION lst#account_changed
     RETURN sys_refcursor;
 
+
+    procedure ins#pay_source(
+        a#account varchar2,
+        a#real_date varchar2,
+        a#summa number,
+        a#fine number,
+        a#period varchar2,
+        a#cod_rkc varchar2,
+        a#pay_num varchar2,
+        a#comment varchar2,
+        a#file_id varchar2
+    );
     
   function add#rooms_part(a#room_id NUMBER) return NUMBER;
     
@@ -2326,7 +2338,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
                NVL(c#alt_post_code, c#post_code) "c#post_code",
                t.cobj#p.f#p_code "c#top_post_code",
                t.cobj#p.f#p_name "c#top_post_name"
-          FROM (SELECT a.c#id,
+          FROM 
+            (SELECT a.c#id,
                        a.c#num,
                        a.c#sn,
                        c#alt_post_code,
@@ -2363,7 +2376,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
                               NVL(c#mp_sum, 0) - NVL(c#p_sum, 0) + NVL(c#fc_sum, 0) -
                               NVL(c#fp_sum, 0)) > 0)
                         AND a.c#id = aop.c#account_id
-                        AND r.c#id = a.c#rooms_id) a) a) t;
+                        AND r.c#id = a.c#rooms_id) a) a) t
+                        join V#ACC_LAST L on (t.C#ID = L.C#ACCOUNT_ID); -- 19.11.2018 чтоб не печатались квитанции по закрытым счетам
     END;
 
   FUNCTION lst#postamt
@@ -3263,5 +3277,46 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
         ORDER BY 1 DESC;
       RETURN res;
     END;
+    
+    
+   procedure ins#pay_source(
+        a#account varchar2,
+        a#real_date varchar2,
+        a#summa number,
+        a#fine number,
+        a#period varchar2,
+        a#cod_rkc varchar2,
+        a#pay_num varchar2,
+        a#comment varchar2,
+        a#file_id varchar2
+    )is
+    begin    
+        null;
+        insert into t#pay_source (
+            c#account,
+            c#real_date,
+            c#summa,
+            c#fine,
+            c#period,
+            c#cod_rkc,
+            c#pay_num,
+            c#comment,
+            c#file_id
+        )
+        values (
+            a#account,
+            to_date(a#real_date,'dd.mm.yyyy'),
+            a#summa,
+            a#fine,
+            a#period,
+            a#cod_rkc,
+            a#pay_num,
+            a#comment,
+            a#file_id
+        );
+        commit;
+    end;
+    
+    
 END p#fcr;
 /
