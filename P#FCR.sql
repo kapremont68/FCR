@@ -2808,7 +2808,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
              f.c#comment,
              f.C#ID PS_ID,
              TO_CHAR(f.c#row_time,'dd.mm.yyyy hh:mm') ROW_TIME,
-             f.c#plat
+             f.c#plat,
+             f.C#PAY_NUM
         FROM fcr.t#pay_source f,
              fcr.t#file_pay fp,
              fcr.t#ops_kind o
@@ -2849,7 +2850,8 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
              '' AS c#comment,
              0 AS PS_ID,
              null ROW_TIME,
-             null c#plat
+             null c#plat,
+             null C#PAY_NUM
 
         --     select o.C#ID, --ID платежа за определенный период
         --            o.C#REAL_DATE, --Фактическая дата платежа
