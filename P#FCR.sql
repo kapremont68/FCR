@@ -2823,6 +2823,7 @@ CREATE OR REPLACE PACKAGE BODY "P#FCR"
           AND f.c#file_id = fp.c#id (+)
         ORDER BY f.c#real_date,
                  f.c#period,
+                 f.C#PAY_NUM,
                  f.c#cod_rkc,
                  f.c#summa;
       RETURN res;
