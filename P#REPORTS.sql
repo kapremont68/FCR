@@ -224,7 +224,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                     ,0 "Иных"            
                     ,SUM(CASE WHEN MN BETWEEN P#MN_UTILS.GET#MN(a#date_begin) AND P#MN_UTILS.GET#MN(a#date_end) THEN OWNERS_JOB_SUM_MN ELSE 0 END)  "Использовано"
                     ,SUM(CASE WHEN MN = P#MN_UTILS.GET#MN(a#date_end) THEN BALANCE_SUM_TOTAL ELSE 0 END)  "Остаток на конец"
-                    ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
+                    ,'https://yadi.sk/d/uScyi1d00Fis7Q/'||HOUSE_ID "Папка с документами по дому"
+--                    ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
                 from
                     T#TOTAL_HOUSE
                 where
@@ -321,7 +322,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
             N13 c10,
 --            N14 c11
             0 c11
-            ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
+--            ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
+            ,'https://yadi.sk/d/uScyi1d00Fis7Q/'||HOUSE_ID "Папка с документами по дому"
         from
             alls
         order by
@@ -410,7 +412,8 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                 CASE WHEN DOLG_END > 0 THEN DOLG_END ELSE 0 END N7,
                 CASE WHEN DOLG_END < 0 THEN ABS(DOLG_END) ELSE 0 END N8,
                 PENI_SUM N9
-                ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
+--                ,'http://kapremont68.ru/wp-content/uploads/dogovor/listhousedocs.php?HID='||HOUSE_ID "Папка с документами по дому"
+                ,'https://yadi.sk/d/uScyi1d00Fis7Q/'||HOUSE_ID "Папка с документами по дому"
             from
                alls
             where
@@ -666,7 +669,7 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                           ON (tc.c#account_id = t.c#account_id
 --                          AND tc.c#a_mn <
                           AND tc.c#a_mn between a#mn_begin and
-                          fcr.p#mn_utils.GET#MN(t.c#next_date))
+                          fcr.p#mn_utils.GET#MN(t.c#next_date)-1)
                         LEFT JOIN (SELECT vw.C#ID,
                                           vw.c#date,
                                           tobj.c#account_id,
@@ -744,8 +747,9 @@ CREATE OR REPLACE PACKAGE BODY P#REPORTS
                                 a#person_id) t
                             ON (vop.c#account_id = t.c#account_id
 --                            AND vop.c#a_mn <
+
                             AND vop.c#a_mn between a#mn_begin and
-                            fcr.p#mn_utils.GET#MN(t.c#next_date))
+                            fcr.p#mn_utils.GET#MN(t.c#next_date)-1)
                         WHERE 1 = 1
                         GROUP BY vop.c#account_id,
                                  c#real_date,
