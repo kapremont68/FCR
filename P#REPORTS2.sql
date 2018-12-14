@@ -14,6 +14,11 @@ CREATE OR REPLACE PACKAGE p#reports2 AS
     FUNCTION lst#person_j_payments (
         a#person_j_id NUMBER
     ) RETURN SYS_REFCURSOR;
+    
+    FUNCTION lst_person_j_ostatki RETURN SYS_REFCURSOR;
+
+    FUNCTION lst_person_j_pay_source RETURN SYS_REFCURSOR;
+    
 
 END p#reports2;
 /
@@ -262,6 +267,69 @@ CREATE OR REPLACE PACKAGE BODY p#reports2 AS
 
         RETURN res;
     END lst#person_j_payments;
+----------------------------------------
+
+    FUNCTION lst_person_j_ostatki RETURN SYS_REFCURSOR AS
+        ret   SYS_REFCURSOR;
+    BEGIN
+        OPEN ret FOR WITH ost AS (
+                         SELECT
+                             c#person_id,
+                             SUM(ñ#ostatok) ostatok
+                         FROM
+                             (
+                                 SELECT
+                                     mp.c#person_id,
+                                     mp.ñ#ostatok,
+                                     mp.c#date,
+                                     mp.c#living_tag,
+                                     mp.c#id,
+                                     mp.c#npd,
+                                     mp.c#cod_rkc,
+                                     mp.c#comment
+                                 FROM
+                                     t#mass_pay mp
+                                 WHERE
+                                     1 = 1
+                                     AND nvl(mp.ñ#ostatok, 0) > 0
+                                     AND nvl(mp.c#remove_flg, 'N') <> 'Y'
+                                     AND nvl(mp.c#storno_flg, 'N') <> 'Y'
+                                     AND ( mp.c#acc_id IS NULL
+                                           OR mp.c#acc_id = 0 )
+                             ) t
+                         GROUP BY
+                             c#person_id
+                     )
+                     SELECT
+                         o.ostatok,
+                         j.*
+                     FROM
+                         ost o
+                         JOIN t#person_j j ON ( o.c#person_id = j.c#person_id );
+
+        RETURN ret;
+    END lst_person_j_ostatki;
+------------------------------
+
+    FUNCTION lst_person_j_pay_source RETURN SYS_REFCURSOR AS
+        ret   SYS_REFCURSOR;
+    BEGIN
+        OPEN ret FOR SELECT
+                         j.c#person_id   person_id,
+                         j.c#name        person_name,
+                         SUM(ps.c#summa) pay_source_sum
+                     FROM
+                         t#pay_source ps
+                         JOIN v#acc_last2 l ON ( l.c#account_id = coalesce(c#acc_id, c#acc_id_tter, c#acc_id_close) )
+                         JOIN t#person_j j ON ( l.c#person_id = j.c#person_id )
+                     GROUP BY
+                         j.c#person_id,
+                         j.c#name
+                     HAVING
+                         SUM(ps.c#summa) <> 0;
+
+        RETURN ret;
+    END lst_person_j_pay_source;
 
 END p#reports2;
 /

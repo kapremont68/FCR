@@ -5,6 +5,8 @@ CREATE OR REPLACE PACKAGE p#tools AS
         p_adres IN VARCHAR2
     ) RETURN SYS_REFCURSOR;
 
+
+
     FUNCTION get_person_name_by_id (
         p_person_id IN NUMBER
     ) RETURN VARCHAR2;
@@ -1237,7 +1239,7 @@ CREATE OR REPLACE PACKAGE BODY p#tools AS
                 WHEN ( summ IS NULL ) THEN ''
                 ELSE 'Последняя оплата: '
                      || summ
-                     || ' руб. от '
+                     || ' руб., '
                      || TO_CHAR(real_date, 'dd.mm.yyyy')
                      || ', '
                      || d.c#name
@@ -1288,6 +1290,5 @@ CREATE OR REPLACE PACKAGE BODY p#tools AS
 
         RETURN res;
     END get_tarif;
-
 END p#tools;
 /
